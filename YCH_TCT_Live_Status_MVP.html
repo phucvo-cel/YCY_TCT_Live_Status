@@ -367,7 +367,31 @@
     .chip-count { min-width: 18px; padding: 0 5px; border-radius: 9px; background: rgba(100, 114, 125, 0.12); font-size: 10px; text-align: center; }
     .stage-chip.active .chip-count { background: rgba(255, 255, 255, 0.18); }
 
-    .toolbar { display: flex; align-items: center; gap: 10px; padding: 13px 16px; border-bottom: 1px solid var(--border); }
+    .controls-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+    }
+
+    .controls-row .journey-filter {
+      flex: 0 0 auto;
+      padding: 0;
+      border-bottom: 0;
+      overflow: visible;
+    }
+
+    .toolbar {
+      display: flex;
+      flex: 1 0 680px;
+      align-items: center;
+      gap: 10px;
+      padding: 0;
+      border-bottom: 0;
+      flex-wrap: nowrap;
+    }
 
     .table-search { position: relative; flex: 1; max-width: 420px; }
     .table-search input { width: 100%; height: 38px; padding: 0 12px 0 36px; border: 1px solid var(--border-strong); border-radius: 5px; color: var(--ink); background: white; }
@@ -710,34 +734,36 @@
 
         <section class="panel" aria-labelledby="entity-list-heading">
           <h2 id="entity-list-heading" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0">Active orders</h2>
-          <div class="journey-filter" role="tablist" aria-label="Journey stage filters">
-            <span class="filter-title label-with-explanation">Journey stage <span id="journey-stage-explain" class="explain-marker" tabindex="0" role="button" aria-label="Explain trip journey stages" aria-describedby="explanation-popover" aria-expanded="false" data-explain="Trip stages are simplified for operational monitoring: awaiting dispatch, in transit and at destination.">!</span></span>
-            <button id="stage-all-button" class="stage-chip active" type="button" data-stage="All" role="tab" aria-selected="true"><span id="stage-all-label">All active</span> <span class="chip-count" id="count-all">0</span></button>
-            <button id="stage-planning-button" class="stage-chip" type="button" data-stage="Awaiting Dispatch" role="tab" aria-selected="false"><span id="stage-planning-label">Awaiting Dispatch</span> <span class="chip-count" id="count-planning">0</span></button>
-            <button id="stage-origin-button" class="stage-chip" type="button" data-stage="At Origin" role="tab" aria-selected="false"><span id="stage-origin-label">At Origin</span> <span class="chip-count" id="count-origin">0</span></button>
-            <button id="stage-transit-button" class="stage-chip" type="button" data-stage="In Transit" role="tab" aria-selected="false"><span id="stage-transit-label">In Transit</span> <span class="chip-count" id="count-transit">0</span></button>
-            <button id="stage-destination-button" class="stage-chip" type="button" data-stage="At Destination" role="tab" aria-selected="false"><span id="stage-destination-label">At Destination</span> <span class="chip-count" id="count-destination">0</span></button>
-          </div>
+          <div class="controls-row">
+            <div class="journey-filter" role="tablist" aria-label="Journey stage filters">
+              <span class="filter-title label-with-explanation">Journey stage <span id="journey-stage-explain" class="explain-marker" tabindex="0" role="button" aria-label="Explain trip journey stages" aria-describedby="explanation-popover" aria-expanded="false" data-explain="Trip stages are simplified for operational monitoring: awaiting dispatch, in transit and at destination.">!</span></span>
+              <button id="stage-all-button" class="stage-chip active" type="button" data-stage="All" role="tab" aria-selected="true"><span id="stage-all-label">All active</span> <span class="chip-count" id="count-all">0</span></button>
+              <button id="stage-planning-button" class="stage-chip" type="button" data-stage="Awaiting Dispatch" role="tab" aria-selected="false"><span id="stage-planning-label">Awaiting Dispatch</span> <span class="chip-count" id="count-planning">0</span></button>
+              <button id="stage-origin-button" class="stage-chip" type="button" data-stage="At Origin" role="tab" aria-selected="false"><span id="stage-origin-label">At Origin</span> <span class="chip-count" id="count-origin">0</span></button>
+              <button id="stage-transit-button" class="stage-chip" type="button" data-stage="In Transit" role="tab" aria-selected="false"><span id="stage-transit-label">In Transit</span> <span class="chip-count" id="count-transit">0</span></button>
+              <button id="stage-destination-button" class="stage-chip" type="button" data-stage="At Destination" role="tab" aria-selected="false"><span id="stage-destination-label">At Destination</span> <span class="chip-count" id="count-destination">0</span></button>
+            </div>
 
-          <div class="toolbar">
-            <label class="table-search">
-              <span aria-hidden="true">⌕</span>
-              <input id="table-search" type="search" placeholder="Search orders or customers" aria-label="Search active orders or customers">
-            </label>
-            <select id="source-filter" class="select-control" aria-label="Filter by data source">
-              <option value="All">All sources</option>
-              <option value="Observed">Observed</option>
-              <option value="Computed">Computed</option>
-              <option value="Manual">Manual</option>
-            </select>
-            <select id="exception-filter" class="select-control" aria-label="Filter by exception">
-              <option value="All">All exception states</option>
-              <option value="Open">Open exception</option>
-              <option value="None">No exception</option>
-            </select>
-            <div class="view-toggle" role="group" aria-label="View type">
-              <button id="journey-view-button" class="active" type="button" aria-pressed="true">☷ Journey</button>
-              <button id="network-view-button" type="button" aria-pressed="false">⌘ Network</button>
+            <div class="toolbar">
+              <label class="table-search">
+                <span aria-hidden="true">⌕</span>
+                <input id="table-search" type="search" placeholder="Search orders or customers" aria-label="Search active orders or customers">
+              </label>
+              <select id="source-filter" class="select-control" aria-label="Filter by data source">
+                <option value="All">All sources</option>
+                <option value="Observed">Observed</option>
+                <option value="Computed">Computed</option>
+                <option value="Manual">Manual</option>
+              </select>
+              <select id="exception-filter" class="select-control" aria-label="Filter by exception">
+                <option value="All">All exception states</option>
+                <option value="Open">Open exception</option>
+                <option value="None">No exception</option>
+              </select>
+              <div class="view-toggle" role="group" aria-label="View type">
+                <button id="journey-view-button" class="active" type="button" aria-pressed="true">☷ Journey</button>
+                <button id="network-view-button" type="button" aria-pressed="false">⌘ Network</button>
+              </div>
             </div>
           </div>
 
