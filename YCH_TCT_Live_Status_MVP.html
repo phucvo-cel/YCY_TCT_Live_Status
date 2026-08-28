@@ -379,7 +379,6 @@
       overflow-x: auto;
     }
 
-    .filter-title { margin-right: 5px; color: var(--muted); font-size: 12px; font-weight: 600; white-space: nowrap; }
 
     .stage-chip {
       display: inline-flex;
@@ -783,7 +782,6 @@
           <h2 id="entity-list-heading" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0">Active orders</h2>
           <div class="controls-row">
             <div class="journey-filter" role="tablist" aria-label="Journey stage filters">
-              <span class="filter-title label-with-explanation">Journey stage <span id="journey-stage-explain" class="explain-marker" tabindex="0" role="button" aria-label="Explain trip journey stages" aria-describedby="explanation-popover" aria-expanded="false" data-explain="Trip stages are simplified for operational monitoring: awaiting dispatch, in transit and at destination.">!</span></span>
               <button id="stage-all-button" class="stage-chip active" type="button" data-stage="All" role="tab" aria-selected="true"><span id="stage-all-label">All active</span> <span class="chip-count" id="count-all">0</span></button>
               <button id="stage-planning-button" class="stage-chip" type="button" data-stage="Awaiting Dispatch" role="tab" aria-selected="false"><span id="stage-planning-label">Awaiting Dispatch</span> <span class="chip-count" id="count-planning">0</span></button>
               <button id="stage-origin-button" class="stage-chip" type="button" data-stage="At Origin" role="tab" aria-selected="false"><span id="stage-origin-label">At Origin</span> <span class="chip-count" id="count-origin">0</span></button>
@@ -1659,11 +1657,6 @@
       setText("stage-planning-label", isOrders ? "Planning" : "Awaiting Dispatch");
       setText("stage-destination-label", "At Destination");
       originButton.style.display = isOrders ? "inline-flex" : "none";
-      const marker = document.getElementById("journey-stage-explain");
-      marker.setAttribute("aria-label", isOrders ? "Explain order journey stages" : "Explain trip journey stages");
-      marker.dataset.explain = isOrders
-        ? "Order stages preserve planning, origin, transit and destination milestones."
-        : "Awaiting dispatch combines trips in planning and at origin. At destination means the trip has reached its final destination.";
     }
 
     function setPerspective(perspective) {
