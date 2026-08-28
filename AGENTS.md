@@ -13,16 +13,16 @@ At the start of a chat, after compaction, or after either file changes, read:
 
 Do not reread unchanged context. Search first and load only the relevant section:
 
-- `KB/CT_Index.md`: entry point for the working file and knowledge base. Start here to find which of the three files below, and which line range, covers what you need.
+- `KB/CT_Index.md`: entry point; find which file below and line range covers what you need.
 - `KB/CT_A_Proposal_Working_File.md`: Part A, Track 1 (Supply Chain Orchestration Control Tower) decisions, worked example, slide inventory, assumptions.
-- `KB/CT_C_Transport_Control_Tower_Working_File.md`: Part C, Track 2 (Transport Control Tower) doctrine, architecture, delivery plan, and the dated decision record C1 to C21. Country, shipper and network facts here are the original Indonesian scope and are superseded by `KB/CT_TCT_SPVB_Working_File_v7.md`; the decisions in this file remain in force by reference except where that file overrides them.
-- `KB/CT_TCT_SPVB_Working_File_v7.md`: the current Track 2 scope from 27 August 2026, Vietnam, shipper Suntory PepsiCo Vietnam Beverage (SPVB), superseding the Indonesian scope (shipper referred to as FFI) that `CT_C_Transport_Control_Tower_Working_File.md` still describes. Network, lanes, the frozen worked example, and the milestone-4 activation are here; it inherits doctrine, architecture and most decisions from the parent file by reference.
+- `KB/CT_C_Transport_Control_Tower_Working_File.md`: Part C, Track 2 (Transport Control Tower) doctrine, architecture, delivery plan, and the dated 1record C1 to C21. Its country, shipper and network facts are superseded by the file below; its decisions remain in force by reference.
+- `KB/CT_TCT_SPVB_Working_File_v7.md`: Track 2's current scope from 27 August 2026, Vietnam, shipper Suntory PepsiCo Vietnam Beverage (SPVB), superseding Part C's original Indonesian scope (shipper FFI). Network, lanes, the frozen worked example, and the milestone-4 activation are here; it inherits doctrine, architecture and most decisions from Part C by reference.
 - `KB/CT_B_Knowledge_Base.md`: Part B, supporting knowledge (plan mechanics, ERP/3PL boundary, glossary, web research).
 - `KB/CEL_YCH_TCT_Scope_and_Delivery_Workshop.md`: workshop outputs, delivery, architecture, roadmap, and client-facing scope.
 - `KB/UI instruction.md`: UI, UX, frontend, visualization, HTML mockups, and MVP work.
 - `KB/CEL_TCT_Artefact_Starter_Pack_v4.md`: specifications, acceptance criteria, reference data, tests, UAT, and features.
 
-The three `CT_*` files above were split out of `KB/CT_Working_File_and_Knowledge_Base_v13.md` (25 August 2026) for narrower loading; that original file is kept unmodified as the full-text archive at `KB/archive/CT_Working_File_and_Knowledge_Base_v13.md` and is not read in normal work. Each `CT_*` file, and `KB/UI instruction.md`, opens with a `## Contents` list giving a line number for every subsection.
+The three `CT_*` files were split from `KB/CT_Working_File_and_Knowledge_Base_v13.md`; the unmodified original is archived at `KB/archive/CT_Working_File_and_Knowledge_Base_v13.md` and is not read in normal work. Each `CT_*` file, and `KB/UI instruction.md`, opens with a `## Contents` list giving a line number for every subsection.
 
 Read a whole KB file only for a full-document review or a genuinely document-wide task. Preserve established filenames.
 

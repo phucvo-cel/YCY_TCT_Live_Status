@@ -29,7 +29,7 @@ Part B holds the supporting knowledge built up while stress-testing both
 scopes; it exists to level the team and to defend the proposals in
 discussion. Commercial figures are deliberately absent from this file.
 
-Scope change, 27 to 28 August 2026 (recorded here 28 August 2026): YCH informed CEL that Track 2's country and shipper changed, from Indonesia and the shipper referred to as FFI, to Vietnam and Suntory PepsiCo Vietnam Beverage (SPVB). This index and this version-13 file are not themselves revised for the change; `CT_TCT_SPVB_Working_File_v7.md` is the current record, forked from a parent file (`CT_TCT_Working_File_v14.md`) not held in this repository. It carries decisions VD1 to VD22 and inherits this file's doctrine, architecture and D1 to D88 by reference. Material built for the Indonesian scope, including `YCH_TCT_Live_Status_MVP.html` as it stood before this pivot, is historical unless explicitly carried forward.
+Scope change, 27 to 28 August 2026 (recorded here 28 August 2026): Track 2's country and shipper changed; see the file list above. Neither this index nor the version-13 file is itself revised for the change. Material built for the Indonesian scope, including `YCH_TCT_Live_Status_MVP.html` as it stood before this pivot, is historical unless explicitly carried forward.
 
 Change log, v12 to v13 (25 August 2026, evening): C21 added, decisions D84 to D88: the milestone sequence confirmed with YCH and superseding D44 and D70, POD completed defined as captured, the return milestone placed in Release 2, the six customer-visible milestones, and the coordinator's waiting order on the floor. The data contract moved to v2 and the mockup to v1.00 in the same pass, so the three never disagree.
 
