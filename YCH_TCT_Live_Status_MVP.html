@@ -3,21 +3,24 @@
   Section map (line numbers; re-check with `grep -n` after edits that add/remove lines above a target).
   Keep this map in sync when structure changes; inspect only the range you need, not the whole file.
 
-  L29-688   <style> block (all CSS)
-  L690-864  <body> markup
-    L692-706   topbar header
-    L730-752   metric-grid summary section
-    L753-815   entity-list panel (table and network views)
-    L820-861   detail drawer: Journey, prominent map and Trip order list
-  L866-2148 <script> block
-    L867-1226  synthetic data and trip generation, incl. multiLegCases (STO/SO
-               multi-leg cases, L1081-1165) and buildTrips
-    L1228-1259 shared state and utilities
-    L1339-1443 table rendering and filtering
-    L1504-1936 map rendering (detail and network)
-    L1937-2027 drawer open/close and journey population, incl. legDestination
-               handling in openOrderDrawer and openTripDrawer
-    L2027-2148 remaining filters, search, and event wiring
+  L29-697   <style> block (all CSS)
+  L699-873  <body> markup
+    L701-722   topbar header, incl. the role-switch (Coordinator / Customer view)
+    L746-768   metric-grid summary section
+    L769-831   entity-list panel (table and network views)
+    L836-870   detail drawer: Journey, prominent map and Trip order list
+  L882-2287 <script> block
+    L883-1235  synthetic data and trip generation: Vietnam/SPVB network
+               (orders array and generatedRouteTemplates, L894-1067),
+               multiLegCases (STO/SO multi-leg cases plus the frozen VN-TR-2214
+               worked example, L1100-1220), and buildTrips
+    L1237-1268 shared state and utilities
+    L1348-1452 table rendering and filtering
+    L1513-1995 map rendering (detail and network)
+    L2058-2170 drawer open/close and journey population, incl. legDestination
+               and deliveredEnRoute handling, and the 9-milestone coordinator
+               list vs. spvbJourneyMilestones' 6-milestone customer list
+    L2171-2287 remaining filters, search, and event wiring
 -->
 <html lang="en">
 <head>
@@ -701,7 +704,7 @@
     <header class="topbar">
       <div class="brand" aria-label="YCH Transport Control Tower">
         <div class="brand-mark">YCH</div>
-        <div class="brand-text"><strong>Transport Control Tower</strong><span>Indonesia operations</span></div>
+        <div class="brand-text"><strong>Transport Control Tower</strong><span>Vietnam operations, SPVB</span></div>
       </div>
       <label class="global-search">
         <span class="search-glyph" aria-hidden="true">⌕</span>
@@ -713,7 +716,7 @@
           <span class="role-switch-label">View as</span>
           <div class="role-switch" role="group" aria-label="View as">
             <button id="role-coordinator-button" class="active" type="button" aria-pressed="true">Coordinator</button>
-            <button id="role-spvb-button" type="button" aria-pressed="false">SPVB</button>
+            <button id="role-spvb-button" type="button" aria-pressed="false">Customer view</button>
           </div>
         </div>
         <button class="top-icon" type="button" aria-label="Notifications">●</button>
@@ -880,99 +883,109 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
+    /* Vietnam / SPVB network (explicit user requirement, 2026-08-28).
+       Re-anchored from the Indonesian FFI-scope network per the confirmed
+       scope pivot (KB/CT_TCT_SPVB_Working_File_v7.md, VD1 to VD4): country
+       Vietnam, shipper Suntory PepsiCo Vietnam Beverage (SPVB). Site names
+       and coordinates are VD2's network table; lane distances are VD3's
+       lane table where given, and reasonably invented (tagged in the
+       decision log) where VD3 does not cover a leg. Vietnam is one
+       landmass, so every leg is road (mapMode "Truck"); the archipelago
+       ferry/ship model is retired. Vietnam runs one timezone (ICT), so
+       times carry no zone suffix, unlike the WIB/WITA/WIT the Indonesian
+       scope needed. */
     const orders = [
       {
-        order: "SO-260825-1048", trip: "TR-4127", vehicle: "B 9472 KXA", vehicleType: "Fuso Wingbox", carrier: "PT Lintas Nusantara", mapMode: "Ship",
-        customer: "Makassar Distribution Centre", channel: "SP", origin: "Cikarang MDC", destination: "Makassar DC", route: "Cikarang → Makassar", stage: "In Transit",
-        current: "In transit", next: "Arrived at Ship-to", eta: "27 Aug, 08:40 WITA", varianceMin: 95, source: "Observed", sourceDetail: "GPS position received from MileApp",
-        freshness: "4 min ago", feed: "MileApp GPS", exception: "Late arrival predicted", exceptionLevel: "amber", progress: 58, distance: "826 of 1,424 km",
-        currentPlace: "Java Sea, north of Tuban", originTime: "Departed 25 Aug, 07:42 WIB", destinationTime: "Expected 27 Aug, 08:40 WITA",
-        coords: { origin: [-6.3079, 107.1721], current: [-5.6220, 112.4200], destination: [-5.1477, 119.4327] },
-        travelled: [[-6.3079,107.1721],[-6.12,107.8],[-6.0,108.9],[-5.9,110.1],[-5.78,111.2],[-5.622,112.42]],
-        remaining: [[-5.622,112.42],[-5.55,113.5],[-5.45,114.6],[-5.3,116.0],[-5.2,117.4],[-5.1477,119.4327]]
+        order: "SO-260825-1048", trip: "TR-4127", vehicle: "61C-482.17", vehicleType: "Wingbox 20ft", carrier: "Truong Phat Van Tai JSC", mapMode: "Truck",
+        customer: "Supply point Hai Phong", channel: "SP", origin: "MDC Hoc Mon", destination: "Supply point Hai Phong", route: "MDC Hoc Mon → Hai Phong", stage: "In Transit",
+        current: "In transit", next: "Arrived at Ship-to", eta: "27 Aug, 08:40", varianceMin: 95, source: "Observed", sourceDetail: "GPS position received from MileApp",
+        freshness: "4 min ago", feed: "MileApp GPS", exception: "Late arrival predicted", exceptionLevel: "amber", progress: 66, distance: "1,208 of 1,830 km",
+        currentPlace: "National Route 1, near Dong Hoi", originTime: "Departed 25 Aug, 09:00", destinationTime: "Expected 27 Aug, 08:40",
+        coords: { origin: [10.884,106.593], current: [17.483,106.600], destination: [20.844,106.688] },
+        travelled: [[10.884,106.593],[12.249,109.190],[13.782,109.219],[16.061,108.213],[17.483,106.600]],
+        remaining: [[17.483,106.600],[18.670,105.682],[19.807,105.777],[20.844,106.688]]
       },
       {
-        order: "STO-260825-0721", trip: "TR-4142", vehicle: "B 9134 TQR", vehicleType: "CDD Box", carrier: "PT Satria Logistik", mapMode: "Truck",
-        customer: "Surabaya Hub", channel: "SP", origin: "Cikarang MDC", destination: "Surabaya Hub", route: "Cikarang → Surabaya", stage: "In Transit",
-        current: "In transit", next: "Arrived at Ship-to", eta: "25 Aug, 22:15 WIB", varianceMin: 12, source: "Observed", sourceDetail: "GPS position received from MileApp",
-        freshness: "2 min ago", feed: "MileApp GPS", exception: "None", exceptionLevel: "none", progress: 71, distance: "538 of 758 km",
-        currentPlace: "Toll Road, west of Nganjuk", originTime: "Departed 25 Aug, 08:08 WIB", destinationTime: "Expected 25 Aug, 22:15 WIB",
-        coords: { origin: [-6.3079,107.1721], current: [-7.55,111.86], destination: [-7.2575,112.7521] },
-        travelled: [[-6.3079,107.1721],[-6.55,108.2],[-6.88,109.6],[-7.2,110.5],[-7.55,111.86]], remaining: [[-7.55,111.86],[-7.5,112.2],[-7.2575,112.7521]]
+        order: "STO-260825-0721", trip: "TR-4142", vehicle: "50H-317.42", vehicleType: "Container Box 20ft", carrier: "Song Hau Trans Co Ltd", mapMode: "Truck",
+        customer: "Supply point Quy Nhon", channel: "SP", origin: "MDC Hoc Mon", destination: "Supply point Quy Nhon", route: "MDC Hoc Mon → Quy Nhon", stage: "In Transit",
+        current: "In transit", next: "Arrived at Ship-to", eta: "25 Aug, 22:15", varianceMin: 12, source: "Observed", sourceDetail: "GPS position received from MileApp",
+        freshness: "2 min ago", feed: "MileApp GPS", exception: "None", exceptionLevel: "none", progress: 71, distance: "462 of 650 km",
+        currentPlace: "National Route 1, south of Tuy Hoa", originTime: "Departed 25 Aug, 08:08", destinationTime: "Expected 25 Aug, 22:15",
+        coords: { origin: [10.884,106.593], current: [12.471,109.194], destination: [13.782,109.219] },
+        travelled: [[10.884,106.593],[12.249,109.190],[12.471,109.194]], remaining: [[12.471,109.194],[13.782,109.219]]
       },
       {
-        order: "SO-260825-1116", trip: "TR-4151", vehicle: "B 8861 UYT", vehicleType: "Fuso Box", carrier: "PT Lintas Nusantara", mapMode: "Truck",
-        customer: "Bandung Regional DC", channel: "MT", origin: "Cibitung Warehouse", destination: "Bandung DC", route: "Cibitung → Bandung", stage: "At Origin",
-        current: "Truck Docked in", next: "Truck Docked out", eta: "25 Aug, 19:30 WIB", varianceMin: 34, source: "Observed", sourceDetail: "Dock event received from gate system",
-        freshness: "7 min ago", feed: "Gate and dock feed", exception: "Dock waiting exceeds threshold", exceptionLevel: "amber", progress: 4, distance: "6 of 148 km",
-        currentPlace: "Cibitung Warehouse", originTime: "Checked in 25 Aug, 13:31 WIB", destinationTime: "Expected 25 Aug, 19:30 WIB",
-        coords: { origin: [-6.2619,107.0870], current: [-6.2625,107.0880], destination: [-6.9175,107.6191] },
-        travelled: [[-6.2619,107.0870],[-6.2625,107.0880]], remaining: [[-6.2625,107.0880],[-6.47,107.22],[-6.68,107.43],[-6.9175,107.6191]]
+        order: "SO-260825-1116", trip: "TR-4151", vehicle: "43C-256.08", vehicleType: "Flatbed Truck", carrier: "Truong Phat Van Tai JSC", mapMode: "Truck",
+        customer: "Supply point Can Tho", channel: "MT", origin: "YCH DC Thuan An", destination: "Supply point Can Tho", route: "Thuan An → Can Tho", stage: "At Origin",
+        current: "Truck Docked in", next: "Truck Docked out", eta: "25 Aug, 19:30", varianceMin: 34, source: "Observed", sourceDetail: "Dock event received from gate system",
+        freshness: "7 min ago", feed: "Gate and dock feed", exception: "Dock waiting exceeds threshold", exceptionLevel: "amber", progress: 4, distance: "7 of 180 km",
+        currentPlace: "YCH DC Thuan An", originTime: "Checked in 25 Aug, 13:31", destinationTime: "Expected 25 Aug, 19:30",
+        coords: { origin: [10.925,106.713], current: [10.926,106.712], destination: [10.034,105.788] },
+        travelled: [[10.925,106.713],[10.926,106.712]], remaining: [[10.926,106.712],[10.5,106.3],[10.034,105.788]]
       },
       {
-        order: "SO-260825-1193", trip: "TR-4160", vehicle: "B 9023 PLO", vehicleType: "Tronton Box", carrier: "PT Andalan Transportasi", mapMode: "Truck",
-        customer: "Semarang Distribution Centre", channel: "GT", origin: "Cikarang MDC", destination: "Semarang DC", route: "Cikarang → Semarang", stage: "Planning",
-        current: "Route planned", next: "Truck confirmed", eta: "26 Aug, 11:00 WIB", varianceMin: 0, source: "Computed", sourceDetail: "Latest planned route from MileApp",
-        freshness: "18 min ago", feed: "MileApp route plan", exception: "No transporter accepts the trip", exceptionLevel: "red", progress: 0, distance: "0 of 446 km",
-        currentPlace: "Position not started", originTime: "Planned departure 25 Aug, 19:00 WIB", destinationTime: "Planned 26 Aug, 11:00 WIB",
-        coords: { origin: [-6.3079,107.1721], current: [-6.3079,107.1721], destination: [-6.9667,110.4167] },
-        travelled: [[-6.3079,107.1721]], remaining: [[-6.3079,107.1721],[-6.48,108.3],[-6.7,109.2],[-6.9667,110.4167]]
+        order: "SO-260825-1193", trip: "TR-4160", vehicle: "75C-198.63", vehicleType: "Container Box 20ft", carrier: "Dai Viet Logistics JSC", mapMode: "Truck",
+        customer: "HUB Da Nang", channel: "GT", origin: "MDC Hoc Mon", destination: "HUB Da Nang", route: "MDC Hoc Mon → Da Nang", stage: "Planning",
+        current: "Route planned", next: "Truck confirmed", eta: "26 Aug, 11:00", varianceMin: 0, source: "Computed", sourceDetail: "Latest planned route from MileApp",
+        freshness: "18 min ago", feed: "MileApp route plan", exception: "No transporter accepts the trip", exceptionLevel: "red", progress: 0, distance: "0 of 940 km",
+        currentPlace: "Position not started", originTime: "Planned departure 25 Aug, 19:00", destinationTime: "Planned 26 Aug, 11:00",
+        coords: { origin: [10.884,106.593], current: [10.884,106.593], destination: [16.061,108.213] },
+        travelled: [[10.884,106.593]], remaining: [[10.884,106.593],[13.782,109.219],[16.061,108.213]]
       },
       {
-        order: "STO-260824-0644", trip: "TR-4098", vehicle: "D 8354 ZBT", vehicleType: "CDD Box", carrier: "PT Satria Logistik", mapMode: "Truck",
-        customer: "Bogor Transit Hub", channel: "MT", origin: "Cibitung Warehouse", destination: "Bogor Hub", route: "Cibitung → Bogor", stage: "At Destination",
-        current: "Arrived at Ship-to", next: "POD Completed", eta: "Arrived 25 Aug, 13:52 WIB", varianceMin: -18, source: "Observed", sourceDetail: "Arrival geofence received from MileApp",
-        freshness: "9 min ago", feed: "MileApp geofence", exception: "POD not received", exceptionLevel: "amber", progress: 100, distance: "72 of 72 km",
-        currentPlace: "Bogor Hub", originTime: "Departed 25 Aug, 10:58 WIB", destinationTime: "Arrived 25 Aug, 13:52 WIB",
-        coords: { origin: [-6.2619,107.0870], current: [-6.5971,106.8060], destination: [-6.5971,106.8060] },
-        travelled: [[-6.2619,107.0870],[-6.38,106.98],[-6.5,106.87],[-6.5971,106.8060]], remaining: [[-6.5971,106.8060]]
+        order: "STO-260824-0644", trip: "TR-4098", vehicle: "92C-374.91", vehicleType: "Van Truck 5T", carrier: "Mekong Transport JSC", mapMode: "Truck",
+        customer: "YCH DC Thuan An", channel: "MT", origin: "Plant Dong Nai", destination: "YCH DC Thuan An", route: "Dong Nai → Thuan An", stage: "At Destination",
+        current: "Arrived at Ship-to", next: "POD Completed", eta: "Arrived 25 Aug, 13:52", varianceMin: -18, source: "Observed", sourceDetail: "Arrival geofence received from MileApp",
+        freshness: "9 min ago", feed: "MileApp geofence", exception: "POD not received", exceptionLevel: "amber", progress: 100, distance: "35 of 35 km",
+        currentPlace: "YCH DC Thuan An", originTime: "Departed 25 Aug, 10:58", destinationTime: "Arrived 25 Aug, 13:52",
+        coords: { origin: [10.945,106.842], current: [10.925,106.713], destination: [10.925,106.713] },
+        travelled: [[10.945,106.842],[10.935,106.78],[10.925,106.713]], remaining: [[10.925,106.713]]
       },
       {
-        order: "SO-260824-0982", trip: "TR-4077", vehicle: "L 9765 VXA", vehicleType: "Fuso Wingbox", carrier: "PT Andalan Transportasi", mapMode: "Truck",
-        customer: "Denpasar Regional DC", channel: "SP", origin: "Surabaya Hub", destination: "Denpasar DC", route: "Surabaya → Denpasar", stage: "In Transit",
-        current: "In transit", next: "Arrived at Ship-to", eta: "26 Aug, 07:10 WITA", varianceMin: 46, source: "Computed", sourceDetail: "Position computed from last event and route plan",
-        freshness: "GPS last seen 2h 14m ago", feed: "MileApp GPS, degraded", exception: "GPS signal lost", exceptionLevel: "red", progress: 62, distance: "271 of 437 km",
-        currentPlace: "Computed near Situbondo", originTime: "Departed 25 Aug, 06:16 WIB", destinationTime: "Expected 26 Aug, 07:10 WITA",
-        coords: { origin: [-7.2575,112.7521], current: [-7.7062,114.01], destination: [-8.65,115.2167] },
-        travelled: [[-7.2575,112.7521],[-7.45,113.15],[-7.6,113.6],[-7.7062,114.01]], remaining: [[-7.7062,114.01],[-8.1,114.5],[-8.22,114.85],[-8.45,115.05],[-8.65,115.2167]]
+        order: "SO-260824-0982", trip: "TR-4077", vehicle: "61C-529.34", vehicleType: "Wingbox 20ft", carrier: "Dai Viet Logistics JSC", mapMode: "Truck",
+        customer: "Supply point Nha Trang", channel: "SP", origin: "MDC Hoc Mon", destination: "Supply point Nha Trang", route: "MDC Hoc Mon → Nha Trang", stage: "In Transit",
+        current: "In transit", next: "Arrived at Ship-to", eta: "26 Aug, 07:10", varianceMin: 46, source: "Computed", sourceDetail: "Position computed from last event and route plan",
+        freshness: "GPS last seen 2h 14m ago", feed: "MileApp GPS, degraded", exception: "GPS signal lost", exceptionLevel: "red", progress: 62, distance: "267 of 430 km",
+        currentPlace: "Computed near Phan Thiet", originTime: "Departed 25 Aug, 06:16", destinationTime: "Expected 26 Aug, 07:10",
+        coords: { origin: [10.884,106.593], current: [11.09,108.1], destination: [12.249,109.190] },
+        travelled: [[10.884,106.593],[10.93,107.3],[11.09,108.1]], remaining: [[11.09,108.1],[11.6,108.6],[12.249,109.190]]
       },
       {
-        order: "SO-260825-1224", trip: "TR-4169", vehicle: "B 7128 NQA", vehicleType: "CDD Refrigerated", carrier: "PT Nusantara Cold Chain", mapMode: "Truck",
-        customer: "Tangerang Distribution Centre", channel: "MT", origin: "Cikarang MDC", destination: "Tangerang DC", route: "Cikarang → Tangerang", stage: "At Origin",
-        current: "Pick completed", next: "Truck Docked in", eta: "25 Aug, 18:20 WIB", varianceMin: 8, source: "Manual", sourceDetail: "Coordinator update from warehouse confirmation",
-        freshness: "Updated 22 min ago", feed: "Manual update", exception: "None", exceptionLevel: "none", progress: 2, distance: "2 of 89 km",
-        currentPlace: "Cikarang MDC", originTime: "Checked in 25 Aug, 12:48 WIB", destinationTime: "Expected 25 Aug, 18:20 WIB",
-        coords: { origin: [-6.3079,107.1721], current: [-6.306,107.16], destination: [-6.1783,106.6319] },
-        travelled: [[-6.3079,107.1721],[-6.306,107.16]], remaining: [[-6.306,107.16],[-6.25,106.98],[-6.2,106.8],[-6.1783,106.6319]]
+        order: "SO-260825-1224", trip: "TR-4169", vehicle: "50H-643.27", vehicleType: "Refrigerated Truck", carrier: "Song Hau Trans Co Ltd", mapMode: "Truck",
+        customer: "YCH DC Thuan An", channel: "MT", origin: "MDC Hoc Mon", destination: "YCH DC Thuan An", route: "Hoc Mon → Thuan An", stage: "At Origin",
+        current: "Pick completed", next: "Truck Docked in", eta: "25 Aug, 18:20", varianceMin: 8, source: "Manual", sourceDetail: "Coordinator update from warehouse confirmation",
+        freshness: "Updated 22 min ago", feed: "Manual update", exception: "None", exceptionLevel: "none", progress: 2, distance: "1 of 25 km",
+        currentPlace: "MDC Hoc Mon", originTime: "Checked in 25 Aug, 12:48", destinationTime: "Expected 25 Aug, 18:20",
+        coords: { origin: [10.884,106.593], current: [10.888,106.62], destination: [10.925,106.713] },
+        travelled: [[10.884,106.593],[10.888,106.62]], remaining: [[10.888,106.62],[10.925,106.713]]
       },
       {
-        order: "RET-260825-0187", trip: "TR-4055-R", vehicle: "B 8462 KLN", vehicleType: "CDD Box", carrier: "PT Satria Logistik", mapMode: "Truck",
-        customer: "Cikarang MDC", channel: "SP", origin: "Bogor Hub", destination: "Cikarang MDC", route: "Bogor → Cikarang", stage: "Return",
-        current: "Return Order Received", next: "Return intake pending", eta: "25 Aug, 20:00 WIB", varianceMin: 0, source: "Manual", sourceDetail: "Return order entered by coordinator",
-        freshness: "Updated 31 min ago", feed: "Manual return record", exception: "Partial rejection return", exceptionLevel: "violet", progress: 0, distance: "0 of 72 km",
-        currentPlace: "Bogor Hub", originTime: "Return order received 25 Aug, 14:01 WIB", destinationTime: "Planned 25 Aug, 20:00 WIB",
-        coords: { origin: [-6.5971,106.8060], current: [-6.5971,106.8060], destination: [-6.3079,107.1721] },
-        travelled: [[-6.5971,106.8060]], remaining: [[-6.5971,106.8060],[-6.5,106.92],[-6.4,107.03],[-6.3079,107.1721]]
+        order: "RET-260825-0187", trip: "TR-4055-R", vehicle: "43C-812.55", vehicleType: "Container Box 20ft", carrier: "Truong Phat Van Tai JSC", mapMode: "Truck",
+        customer: "MDC Hoc Mon", channel: "SP", origin: "YCH DC Thuan An", destination: "MDC Hoc Mon", route: "Thuan An → Hoc Mon", stage: "Return",
+        current: "Return Order Received", next: "Return intake pending", eta: "25 Aug, 20:00", varianceMin: 0, source: "Manual", sourceDetail: "Return order entered by coordinator",
+        freshness: "Updated 31 min ago", feed: "Manual return record", exception: "Partial rejection return", exceptionLevel: "violet", progress: 0, distance: "0 of 25 km",
+        currentPlace: "YCH DC Thuan An", originTime: "Return order received 25 Aug, 14:01", destinationTime: "Planned 25 Aug, 20:00",
+        coords: { origin: [10.925,106.713], current: [10.925,106.713], destination: [10.884,106.593] },
+        travelled: [[10.925,106.713]], remaining: [[10.925,106.713],[10.884,106.593]]
       }
     ];
 
     const generatedRouteTemplates = [
-      { origin: "Cikarang MDC", destination: "Bandung DC", originCoord: [-6.3079,107.1721], destinationCoord: [-6.9175,107.6191], distanceKm: 148, timezone: "WIB" },
-      { origin: "Cikarang MDC", destination: "Semarang DC", originCoord: [-6.3079,107.1721], destinationCoord: [-6.9667,110.4167], distanceKm: 446, timezone: "WIB" },
-      { origin: "Cibitung Warehouse", destination: "Bogor Hub", originCoord: [-6.2619,107.0870], destinationCoord: [-6.5971,106.8060], distanceKm: 72, timezone: "WIB" },
-      { origin: "Cikarang MDC", destination: "Tangerang DC", originCoord: [-6.3079,107.1721], destinationCoord: [-6.1783,106.6319], distanceKm: 89, timezone: "WIB" },
-      { origin: "Surabaya Hub", destination: "Malang DC", originCoord: [-7.2575,112.7521], destinationCoord: [-7.9666,112.6326], distanceKm: 96, timezone: "WIB" },
-      { origin: "Surabaya Hub", destination: "Semarang DC", originCoord: [-7.2575,112.7521], destinationCoord: [-6.9667,110.4167], distanceKm: 352, timezone: "WIB" },
-      { origin: "Medan DC", destination: "Belawan Hub", originCoord: [3.5952,98.6722], destinationCoord: [3.7843,98.6942], distanceKm: 27, timezone: "WIB" },
-      { origin: "Makassar DC", destination: "Parepare Hub", originCoord: [-5.1477,119.4327], destinationCoord: [-4.0096,119.6291], distanceKm: 155, timezone: "WITA" },
-      { origin: "Denpasar DC", destination: "Gilimanuk Hub", originCoord: [-8.6500,115.2167], destinationCoord: [-8.1614,114.4367], distanceKm: 132, timezone: "WITA" },
-      { origin: "Balikpapan DC", destination: "Samarinda Hub", originCoord: [-1.2379,116.8529], destinationCoord: [-0.5022,117.1536], distanceKm: 116, timezone: "WITA" },
-      { origin: "Palembang DC", destination: "Bandar Lampung Hub", originCoord: [-2.9909,104.7566], destinationCoord: [-5.3971,105.2668], distanceKm: 286, timezone: "WIB" },
-      { origin: "Solo Hub", destination: "Yogyakarta DC", originCoord: [-7.5755,110.8243], destinationCoord: [-7.7956,110.3695], distanceKm: 65, timezone: "WIB" }
+      { origin: "MDC Hoc Mon", destination: "YCH DC Thuan An", originCoord: [10.884,106.593], destinationCoord: [10.925,106.713], distanceKm: 25 },
+      { origin: "YCH DC Thuan An", destination: "Supply point Can Tho", originCoord: [10.925,106.713], destinationCoord: [10.034,105.788], distanceKm: 180 },
+      { origin: "MDC Hoc Mon", destination: "Supply point Nha Trang", originCoord: [10.884,106.593], destinationCoord: [12.249,109.190], distanceKm: 430 },
+      { origin: "MDC Hoc Mon", destination: "HUB Da Nang", originCoord: [10.884,106.593], destinationCoord: [16.061,108.213], distanceKm: 940 },
+      { origin: "MDC Hoc Mon", destination: "Supply point Hanoi", originCoord: [10.884,106.593], destinationCoord: [21.028,105.834], distanceKm: 1750 },
+      { origin: "MDC Hoc Mon", destination: "Supply point Bac Ninh", originCoord: [10.884,106.593], destinationCoord: [21.107,106.089], distanceKm: 1780 },
+      { origin: "MDC Hoc Mon", destination: "Supply point Hai Phong", originCoord: [10.884,106.593], destinationCoord: [20.844,106.688], distanceKm: 1830 },
+      { origin: "MDC Hoc Mon", destination: "Supply point Quy Nhon", originCoord: [10.884,106.593], destinationCoord: [13.782,109.219], distanceKm: 650 },
+      { origin: "Plant Dong Nai", destination: "YCH DC Thuan An", originCoord: [10.945,106.842], destinationCoord: [10.925,106.713], distanceKm: 35 },
+      { origin: "HUB Da Nang", destination: "Supply point Quy Nhon", originCoord: [16.061,108.213], destinationCoord: [13.782,109.219], distanceKm: 300 },
+      { origin: "HUB Da Nang", destination: "Supply point Hai Phong", originCoord: [16.061,108.213], destinationCoord: [20.844,106.688], distanceKm: 700 }
     ];
 
-    const generatedCarriers = ["PT Lintas Nusantara", "PT Satria Logistik", "PT Andalan Transportasi", "PT Nusantara Cold Chain", "PT Trans Jawa Express", "PT Mitra Angkutan Indonesia"];
-    const generatedVehicleTypes = ["CDD Box", "Fuso Wingbox", "Tronton Box", "CDD Refrigerated", "Fuso Box"];
+    const generatedCarriers = ["Truong Phat Van Tai JSC", "Song Hau Trans Co Ltd", "Dai Viet Logistics JSC", "Mekong Transport JSC", "Viet Thanh Logistics Co"];
+    const generatedVehicleTypes = ["Wingbox 20ft", "Container Box 20ft", "Refrigerated Truck", "Flatbed Truck", "Van Truck 5T"];
     const generatedChannels = ["MT", "GT", "SP", "MT", "GT"];
     const generatedStages = ["Planning", "At Origin", "In Transit", "In Transit", "At Destination", "Return"];
     const generatedExceptions = ["Late arrival predicted", "Route deviation", "GPS signal lost", "POD not received", "Truck arrives late at gate"];
@@ -1015,7 +1028,7 @@
       orders.push({
         order: `${isReturn ? "RET" : sequence % 3 === 0 ? "STO" : "SO"}-260825-${String(1300 + sequence).padStart(4, "0")}`,
         trip: `TR-${4200 + sequence}`,
-        vehicle: `${["B", "D", "L", "H", "AB"][sequence % 5]} ${vehicleNumber} ${["KXA", "TQR", "VBT", "NPL", "RYT"][sequence % 5]}`,
+        vehicle: `${["61C", "50H", "43C", "75C", "92C"][sequence % 5]}-${String(100 + vehicleNumber % 900).padStart(3, "0")}.${String(10 + vehicleNumber % 90).padStart(2, "0")}`,
         vehicleType: generatedVehicleTypes[sequence % generatedVehicleTypes.length],
         carrier: generatedCarriers[sequence % generatedCarriers.length],
         mapMode: "Truck",
@@ -1027,7 +1040,7 @@
         stage,
         current,
         next,
-        eta: `${stage === "At Destination" ? "Arrived 25 Aug, " : "26 Aug, "}${hour}:${minute} ${template.timezone}`,
+        eta: `${stage === "At Destination" ? "Arrived 25 Aug, " : "26 Aug, "}${hour}:${minute}`,
         varianceMin,
         source,
         sourceDetail: source === "Observed" ? "GPS position received from MileApp" : source === "Computed" ? "Position computed from latest route event" : "Coordinator position update",
@@ -1038,8 +1051,8 @@
         progress,
         distance: `${travelledKm} of ${template.distanceKm} km`,
         currentPlace: stage === "Planning" ? origin : stage === "At Origin" ? `${origin} site` : stage === "At Destination" ? destination : stage === "Return" ? `${origin} return point` : `${Math.round(progress)}% along ${origin} to ${destination}`,
-        originTime: stage === "Planning" ? `Planned departure 25 Aug, ${hour}:${minute} ${template.timezone}` : `Departed 25 Aug, ${hour}:${minute} ${template.timezone}`,
-        destinationTime: `Expected 26 Aug, ${hour}:${minute} ${template.timezone}`,
+        originTime: stage === "Planning" ? `Planned departure 25 Aug, ${hour}:${minute}` : `Departed 25 Aug, ${hour}:${minute}`,
+        destinationTime: `Expected 26 Aug, ${hour}:${minute}`,
         coords: { origin: originCoord, current: currentCoord, destination: destinationCoord },
         travelled: [originCoord, currentCoord],
         remaining: [currentCoord, destinationCoord]
@@ -1097,114 +1110,132 @@
        `deliveredEnRoute` marks that order and is set once it is at its own
        final destination while the trip carrying it is still moving. */
     const multiLegCases = [
-      // Case 1: Cikarang MDC -> Surabaya Hub -> Malang DC. Trip TR-9301 (A to
-      // B) has just arrived and had its POD signed at Surabaya Hub. STOb ends
-      // here, so its own milestone and the trip's milestone both read POD
-      // Completed. SOc's ship-to is Malang DC, one more leg past Surabaya
-      // Hub, so it stays at "In transit" until a further trip carries it on.
+      // Case 1: MDC Hoc Mon -> HUB Da Nang -> Supply point Hai Phong. Trip
+      // TR-9301 (A to B) has just arrived and had its POD signed at Da Nang.
+      // STOb ends here, so its own milestone and the trip's milestone both
+      // read POD Completed. SOc's ship-to is Hai Phong, one more leg north
+      // past Da Nang, so it stays at "In transit" until a further trip
+      // carries it on.
       {
-        order: "STO-260826-2101", trip: "TR-9301", vehicle: "B 9552 LKM", vehicleType: "CDD Box", carrier: "PT Trans Jawa Express", mapMode: "Truck",
-        customer: "Surabaya Hub", channel: "SP", origin: "Cikarang MDC", destination: "Surabaya Hub", route: "Cikarang MDC → Surabaya Hub", stage: "At Destination",
-        current: "POD Completed", next: "POD Completed", eta: "Arrived 26 Aug, 05:40 WIB", varianceMin: -10, source: "Observed", sourceDetail: "POD captured via MileApp",
-        freshness: "3 min ago", feed: "MileApp POD capture", exception: "None", exceptionLevel: "none", progress: 100, distance: "812 of 812 km",
-        currentPlace: "Surabaya Hub", originTime: "Departed 25 Aug, 14:10 WIB", destinationTime: "Arrived 26 Aug, 05:40 WIB",
-        coords: { origin: [-6.3079,107.1721], current: [-7.2575,112.7521], destination: [-7.2575,112.7521] },
-        travelled: [[-6.3079,107.1721],[-6.55,108.2],[-6.88,109.6],[-7.2,110.5],[-7.55,111.86],[-7.2575,112.7521]], remaining: [[-7.2575,112.7521]],
-        tripJourney: [{ trip: "TR-9301", route: "Cikarang MDC → Surabaya Hub", status: "Current", vehicle: "B 9552 LKM" }]
+        order: "STO-260826-2101", trip: "TR-9301", vehicle: "61C-227.14", vehicleType: "Container Box 20ft", carrier: "Truong Phat Van Tai JSC", mapMode: "Truck",
+        customer: "HUB Da Nang", channel: "SP", origin: "MDC Hoc Mon", destination: "HUB Da Nang", route: "MDC Hoc Mon → Da Nang", stage: "At Destination",
+        current: "POD Completed", next: "POD Completed", eta: "Arrived 26 Aug, 14:20", varianceMin: -10, source: "Observed", sourceDetail: "POD captured via MileApp",
+        freshness: "3 min ago", feed: "MileApp POD capture", exception: "None", exceptionLevel: "none", progress: 100, distance: "940 of 940 km",
+        currentPlace: "HUB Da Nang", originTime: "Departed 25 Aug, 16:00", destinationTime: "Arrived 26 Aug, 14:20",
+        coords: { origin: [10.884,106.593], current: [16.061,108.213], destination: [16.061,108.213] },
+        travelled: [[10.884,106.593],[12.249,109.190],[13.782,109.219],[16.061,108.213]], remaining: [[16.061,108.213]],
+        tripJourney: [{ trip: "TR-9301", route: "MDC Hoc Mon → Da Nang", status: "Current", vehicle: "61C-227.14" }]
       },
       {
-        order: "SO-260826-2102", trip: "TR-9301", vehicle: "B 9552 LKM", vehicleType: "CDD Box", carrier: "PT Trans Jawa Express", mapMode: "Truck",
-        customer: "Malang DC", channel: "SP", origin: "Cikarang MDC", destination: "Malang DC", route: "Cikarang MDC → Surabaya Hub → Malang DC", stage: "In Transit",
-        current: "In transit", next: "Arrived at Ship-to", eta: "26 Aug, 09:15 WIB", varianceMin: 0, source: "Observed", sourceDetail: "GPS position received from MileApp for the current trip leg",
-        freshness: "3 min ago", feed: "MileApp GPS", exception: "None", exceptionLevel: "none", progress: 89, distance: "812 of 908 km",
-        currentPlace: "Surabaya Hub, awaiting the next trip leg to Malang DC", originTime: "Departed 25 Aug, 14:10 WIB", destinationTime: "Expected 26 Aug, 09:15 WIB",
-        coords: { origin: [-6.3079,107.1721], current: [-7.2575,112.7521], destination: [-7.9666,112.6326] },
-        travelled: [[-6.3079,107.1721],[-6.55,108.2],[-6.88,109.6],[-7.2,110.5],[-7.55,111.86],[-7.2575,112.7521]], remaining: [[-7.2575,112.7521],[-7.55,112.70],[-7.9666,112.6326]],
-        legDestination: "Surabaya Hub",
-        tripJourney: [{ trip: "TR-9301", route: "Cikarang MDC → Surabaya Hub", status: "Current", vehicle: "B 9552 LKM" }]
+        order: "SO-260826-2102", trip: "TR-9301", vehicle: "61C-227.14", vehicleType: "Container Box 20ft", carrier: "Truong Phat Van Tai JSC", mapMode: "Truck",
+        customer: "Supply point Hai Phong", channel: "SP", origin: "MDC Hoc Mon", destination: "Supply point Hai Phong", route: "MDC Hoc Mon → Da Nang → Hai Phong", stage: "In Transit",
+        current: "In transit", next: "Arrived at Ship-to", eta: "27 Aug, 08:00", varianceMin: 0, source: "Observed", sourceDetail: "GPS position received from MileApp for the current trip leg",
+        freshness: "3 min ago", feed: "MileApp GPS", exception: "None", exceptionLevel: "none", progress: 57, distance: "940 of 1,640 km",
+        currentPlace: "HUB Da Nang, awaiting the next trip leg to Hai Phong", originTime: "Departed 25 Aug, 16:00", destinationTime: "Expected 27 Aug, 08:00",
+        coords: { origin: [10.884,106.593], current: [16.061,108.213], destination: [20.844,106.688] },
+        travelled: [[10.884,106.593],[12.249,109.190],[13.782,109.219],[16.061,108.213]], remaining: [[16.061,108.213],[18.670,105.682],[20.844,106.688]],
+        legDestination: "HUB Da Nang",
+        tripJourney: [{ trip: "TR-9301", route: "MDC Hoc Mon → Da Nang", status: "Current", vehicle: "61C-227.14" }]
       },
-      // Case 2: Cikarang MDC -> Solo Hub -> Yogyakarta DC. Trip TR-9302 (A to
-      // B) is still moving and has not reached Solo Hub yet, so SOb (ending
-      // at Solo Hub) and STOc (continuing to Yogyakarta DC) still share one
-      // milestone. They only diverge once this trip arrives and its POD is
-      // signed, the same way Case 1 already has.
+      // Case 2: MDC Hoc Mon -> Supply point Hanoi -> Dong Anh Distributor.
+      // Trip TR-9302 (A to B) is still moving and has not reached Hanoi yet,
+      // so SOb (ending at Hanoi) and STOc (continuing to the last-mile
+      // customer at Dong Anh) still share one milestone. They only diverge
+      // once this trip arrives and its POD is signed, the same way Case 1
+      // already has.
       {
-        order: "SO-260826-2151", trip: "TR-9302", vehicle: "H 7734 MXP", vehicleType: "Tronton Box", carrier: "PT Mitra Angkutan Indonesia", mapMode: "Truck",
-        customer: "Solo Hub", channel: "GT", origin: "Cikarang MDC", destination: "Solo Hub", route: "Cikarang MDC → Solo Hub", stage: "In Transit",
-        current: "In transit", next: "Arrived at Ship-to", eta: "26 Aug, 02:20 WIB", varianceMin: 18, source: "Observed", sourceDetail: "GPS position received from MileApp",
-        freshness: "5 min ago", feed: "MileApp GPS", exception: "None", exceptionLevel: "none", progress: 55, distance: "237 of 430 km",
-        currentPlace: "Toll road, east of Brebes", originTime: "Departed 25 Aug, 16:00 WIB", destinationTime: "Expected 26 Aug, 02:20 WIB",
-        coords: { origin: [-6.3079,107.1721], current: [-7.0051,109.1808], destination: [-7.5755,110.8243] },
-        travelled: [[-6.3079,107.1721],[-6.55,107.9],[-6.8,108.6],[-7.0051,109.1808]], remaining: [[-7.0051,109.1808],[-7.3,110.0],[-7.5755,110.8243]],
-        tripJourney: [{ trip: "TR-9302", route: "Cikarang MDC → Solo Hub", status: "Current", vehicle: "H 7734 MXP" }]
-      },
-      {
-        order: "STO-260826-2152", trip: "TR-9302", vehicle: "H 7734 MXP", vehicleType: "Tronton Box", carrier: "PT Mitra Angkutan Indonesia", mapMode: "Truck",
-        customer: "Yogyakarta DC", channel: "GT", origin: "Cikarang MDC", destination: "Yogyakarta DC", route: "Cikarang MDC → Solo Hub → Yogyakarta DC", stage: "In Transit",
-        current: "In transit", next: "Arrived at Ship-to", eta: "26 Aug, 07:30 WIB", varianceMin: 0, source: "Observed", sourceDetail: "GPS position received from MileApp for the current trip leg",
-        freshness: "5 min ago", feed: "MileApp GPS", exception: "None", exceptionLevel: "none", progress: 48, distance: "237 of 495 km",
-        currentPlace: "Toll road, east of Brebes", originTime: "Departed 25 Aug, 16:00 WIB", destinationTime: "Expected 26 Aug, 07:30 WIB",
-        coords: { origin: [-6.3079,107.1721], current: [-7.0051,109.1808], destination: [-7.7956,110.3695] },
-        travelled: [[-6.3079,107.1721],[-6.55,107.9],[-6.8,108.6],[-7.0051,109.1808]], remaining: [[-7.0051,109.1808],[-7.3,110.0],[-7.5755,110.8243],[-7.7956,110.3695]],
-        legDestination: "Solo Hub",
-        tripJourney: [{ trip: "TR-9302", route: "Cikarang MDC → Solo Hub", status: "Current", vehicle: "H 7734 MXP" }]
-      },
-      // Case 3: Cikarang MDC -> Makassar DC -> Parepare Hub -> Pinrang Hub.
-      // Trip TR-9270 (A to B) already completed earlier. Trip TR-9303 (B to
-      // C) has just arrived and had its POD signed at Parepare Hub. STOc
-      // ends here, so it reads POD Completed with the trip. SOd's ship-to is
-      // Pinrang Hub, one more leg past Parepare Hub, so it stays at "In
-      // transit" and still carries its full two-trip history.
-      {
-        order: "STO-260826-2201", trip: "TR-9303", vehicle: "B 9210 RQS", vehicleType: "CDD Box", carrier: "PT Andalan Transportasi", mapMode: "Truck",
-        customer: "Parepare Hub", channel: "MT", origin: "Makassar DC", destination: "Parepare Hub", route: "Makassar DC → Parepare Hub", stage: "At Destination",
-        current: "POD Completed", next: "POD Completed", eta: "Arrived 26 Aug, 10:05 WITA", varianceMin: -15, source: "Observed", sourceDetail: "POD captured via MileApp",
-        freshness: "4 min ago", feed: "MileApp POD capture", exception: "None", exceptionLevel: "none", progress: 100, distance: "155 of 155 km",
-        currentPlace: "Parepare Hub", originTime: "Departed 26 Aug, 06:40 WITA", destinationTime: "Arrived 26 Aug, 10:05 WITA",
-        coords: { origin: [-5.1477,119.4327], current: [-4.0096,119.6291], destination: [-4.0096,119.6291] },
-        travelled: [[-5.1477,119.4327],[-4.85,119.5],[-4.4,119.58],[-4.0096,119.6291]], remaining: [[-4.0096,119.6291]],
-        tripJourney: [{ trip: "TR-9303", route: "Makassar DC → Parepare Hub", status: "Current", vehicle: "B 9210 RQS" }]
+        order: "SO-260826-2151", trip: "TR-9302", vehicle: "50H-483.71", vehicleType: "Wingbox 20ft", carrier: "Viet Thanh Logistics Co", mapMode: "Truck",
+        customer: "Supply point Hanoi", channel: "GT", origin: "MDC Hoc Mon", destination: "Supply point Hanoi", route: "MDC Hoc Mon → Hanoi", stage: "In Transit",
+        current: "In transit", next: "Arrived at Ship-to", eta: "27 Aug, 02:00", varianceMin: 18, source: "Observed", sourceDetail: "GPS position received from MileApp",
+        freshness: "5 min ago", feed: "MileApp GPS", exception: "None", exceptionLevel: "none", progress: 64, distance: "1,120 of 1,750 km",
+        currentPlace: "National Route 1, near Vinh", originTime: "Departed 25 Aug, 20:00", destinationTime: "Expected 27 Aug, 02:00",
+        coords: { origin: [10.884,106.593], current: [18.670,105.682], destination: [21.028,105.834] },
+        travelled: [[10.884,106.593],[13.782,109.219],[16.061,108.213],[18.670,105.682]], remaining: [[18.670,105.682],[19.807,105.777],[21.028,105.834]],
+        tripJourney: [{ trip: "TR-9302", route: "MDC Hoc Mon → Hanoi", status: "Current", vehicle: "50H-483.71" }]
       },
       {
-        order: "SO-260826-2202", trip: "TR-9303", vehicle: "B 9210 RQS", vehicleType: "CDD Box", carrier: "PT Andalan Transportasi", mapMode: "Truck",
-        customer: "Pinrang Hub", channel: "MT", origin: "Cikarang MDC", destination: "Pinrang Hub", route: "Cikarang MDC → Makassar DC → Parepare Hub → Pinrang Hub", stage: "In Transit",
-        current: "In transit", next: "Arrived at Ship-to", eta: "26 Aug, 13:30 WITA", varianceMin: 0, source: "Observed", sourceDetail: "GPS position received from MileApp for the current trip leg",
-        freshness: "4 min ago", feed: "MileApp GPS", exception: "None", exceptionLevel: "none", progress: 97, distance: "1,579 of 1,629 km",
-        currentPlace: "Parepare Hub, awaiting the next trip leg to Pinrang Hub", originTime: "Departed 25 Aug, 07:42 WIB", destinationTime: "Expected 26 Aug, 13:30 WITA",
-        coords: { origin: [-6.3079,107.1721], current: [-4.0096,119.6291], destination: [-3.7854,119.6521] },
-        travelled: [[-6.3079,107.1721],[-5.9,110.1],[-5.622,112.42],[-5.1477,119.4327],[-4.85,119.5],[-4.4,119.58],[-4.0096,119.6291]], remaining: [[-4.0096,119.6291],[-3.7854,119.6521]],
-        legDestination: "Parepare Hub",
+        order: "STO-260826-2152", trip: "TR-9302", vehicle: "50H-483.71", vehicleType: "Wingbox 20ft", carrier: "Viet Thanh Logistics Co", mapMode: "Truck",
+        customer: "Dong Anh Distributor", channel: "GT", origin: "MDC Hoc Mon", destination: "Dong Anh Distributor", route: "MDC Hoc Mon → Hanoi → Dong Anh Distributor", stage: "In Transit",
+        current: "In transit", next: "Arrived at Ship-to", eta: "27 Aug, 03:15", varianceMin: 0, source: "Observed", sourceDetail: "GPS position received from MileApp for the current trip leg",
+        freshness: "5 min ago", feed: "MileApp GPS", exception: "None", exceptionLevel: "none", progress: 63, distance: "1,120 of 1,770 km",
+        currentPlace: "National Route 1, near Vinh", originTime: "Departed 25 Aug, 20:00", destinationTime: "Expected 27 Aug, 03:15",
+        coords: { origin: [10.884,106.593], current: [18.670,105.682], destination: [21.15,105.85] },
+        travelled: [[10.884,106.593],[13.782,109.219],[16.061,108.213],[18.670,105.682]], remaining: [[18.670,105.682],[19.807,105.777],[21.028,105.834],[21.15,105.85]],
+        legDestination: "Supply point Hanoi",
+        tripJourney: [{ trip: "TR-9302", route: "MDC Hoc Mon → Hanoi", status: "Current", vehicle: "50H-483.71" }]
+      },
+      // Case 3: MDC Hoc Mon -> HUB Da Nang -> Supply point Quy Nhon -> An
+      // Nhon Distributor. Trip TR-9270 (A to B) already completed earlier.
+      // Trip TR-9303 (B to C) has just arrived and had its POD signed at Quy
+      // Nhon, the hub's southbound spoke. STOc ends here, so it reads POD
+      // Completed with the trip. SOd's ship-to is the last-mile customer at
+      // An Nhon, one more leg past Quy Nhon, so it stays at "In transit" and
+      // still carries its full two-trip history.
+      {
+        order: "STO-260826-2201", trip: "TR-9303", vehicle: "43C-905.62", vehicleType: "Container Box 20ft", carrier: "Dai Viet Logistics JSC", mapMode: "Truck",
+        customer: "Supply point Quy Nhon", channel: "MT", origin: "HUB Da Nang", destination: "Supply point Quy Nhon", route: "HUB Da Nang → Quy Nhon", stage: "At Destination",
+        current: "POD Completed", next: "POD Completed", eta: "Arrived 26 Aug, 19:40", varianceMin: -15, source: "Observed", sourceDetail: "POD captured via MileApp",
+        freshness: "4 min ago", feed: "MileApp POD capture", exception: "None", exceptionLevel: "none", progress: 100, distance: "300 of 300 km",
+        currentPlace: "Supply point Quy Nhon", originTime: "Departed 26 Aug, 15:10", destinationTime: "Arrived 26 Aug, 19:40",
+        coords: { origin: [16.061,108.213], current: [13.782,109.219], destination: [13.782,109.219] },
+        travelled: [[16.061,108.213],[14.9,108.9],[13.782,109.219]], remaining: [[13.782,109.219]],
+        tripJourney: [{ trip: "TR-9303", route: "HUB Da Nang → Quy Nhon", status: "Current", vehicle: "43C-905.62" }]
+      },
+      {
+        order: "SO-260826-2202", trip: "TR-9303", vehicle: "43C-905.62", vehicleType: "Container Box 20ft", carrier: "Dai Viet Logistics JSC", mapMode: "Truck",
+        customer: "An Nhon Distributor", channel: "MT", origin: "MDC Hoc Mon", destination: "An Nhon Distributor", route: "MDC Hoc Mon → Da Nang → Quy Nhon → An Nhon Distributor", stage: "In Transit",
+        current: "In transit", next: "Arrived at Ship-to", eta: "26 Aug, 21:30", varianceMin: 0, source: "Observed", sourceDetail: "GPS position received from MileApp for the current trip leg",
+        freshness: "4 min ago", feed: "MileApp GPS", exception: "None", exceptionLevel: "none", progress: 98, distance: "1,240 of 1,270 km",
+        currentPlace: "Supply point Quy Nhon, awaiting the next trip leg to An Nhon Distributor", originTime: "Departed 25 Aug, 16:00", destinationTime: "Expected 26 Aug, 21:30",
+        coords: { origin: [10.884,106.593], current: [13.782,109.219], destination: [13.90,109.10] },
+        travelled: [[10.884,106.593],[16.061,108.213],[13.782,109.219]], remaining: [[13.782,109.219],[13.90,109.10]],
+        legDestination: "Supply point Quy Nhon",
         tripJourney: [
-          { trip: "TR-9270", route: "Cikarang MDC → Makassar DC", status: "Completed", vehicle: "Previous vehicle (sea transport)" },
-          { trip: "TR-9303", route: "Makassar DC → Parepare Hub", status: "Current", vehicle: "B 9210 RQS" }
+          { trip: "TR-9270", route: "MDC Hoc Mon → Da Nang", status: "Completed", vehicle: "Previous vehicle" },
+          { trip: "TR-9303", route: "HUB Da Nang → Quy Nhon", status: "Current", vehicle: "43C-905.62" }
         ]
       },
-      // Case 4: Cikarang MDC -> Bandung DC -> Garut Hub, one truck, one trip,
-      // two physical stops. SOe (ending at Bandung DC, the first stop) was
-      // already delivered and its POD signed while the same trip is still on
-      // the road to Garut Hub with STOf. SOe's own milestone therefore reads
-      // POD Completed ahead of the trip, which itself only finishes once it
-      // reaches its second stop.
+      // Case 4: MDC Hoc Mon -> YCH DC Thuan An -> Supply point Can Tho, one
+      // truck, one trip, two physical stops. SOe (ending at Thuan An, the
+      // first stop) was already delivered and its POD signed while the same
+      // trip is still on the road to Can Tho with STOf. SOe's own milestone
+      // therefore reads POD Completed ahead of the trip, which itself only
+      // finishes once it reaches its second stop.
       {
-        order: "STO-260826-2302", trip: "TR-9304", vehicle: "D 8821 TNK", vehicleType: "Fuso Box", carrier: "PT Lintas Nusantara", mapMode: "Truck",
-        customer: "Garut Hub", channel: "GT", origin: "Cikarang MDC", destination: "Garut Hub", route: "Cikarang MDC → Bandung DC → Garut Hub", stage: "In Transit",
-        current: "In transit", next: "Arrived at Ship-to", eta: "26 Aug, 14:20 WIB", varianceMin: 12, source: "Observed", sourceDetail: "GPS position received from MileApp",
-        freshness: "6 min ago", feed: "MileApp GPS", exception: "None", exceptionLevel: "none", progress: 74, distance: "158 of 213 km",
-        currentPlace: "National road, south-east of Bandung, en route to Garut Hub", originTime: "Departed 26 Aug, 09:10 WIB", destinationTime: "Expected 26 Aug, 14:20 WIB",
-        coords: { origin: [-6.3079,107.1721], current: [-6.9640,107.6625], destination: [-7.2274,107.9082] },
-        travelled: [[-6.3079,107.1721],[-6.55,107.3],[-6.75,107.45],[-6.9175,107.6191],[-6.9640,107.6625]], remaining: [[-6.9640,107.6625],[-7.05,107.75],[-7.15,107.83],[-7.2274,107.9082]],
-        tripJourney: [{ trip: "TR-9304", route: "Cikarang MDC → Bandung DC → Garut Hub", status: "Current", vehicle: "D 8821 TNK" }]
+        order: "STO-260826-2302", trip: "TR-9304", vehicle: "50H-661.09", vehicleType: "Flatbed Truck", carrier: "Song Hau Trans Co Ltd", mapMode: "Truck",
+        customer: "Supply point Can Tho", channel: "GT", origin: "MDC Hoc Mon", destination: "Supply point Can Tho", route: "MDC Hoc Mon → Thuan An → Can Tho", stage: "In Transit",
+        current: "In transit", next: "Arrived at Ship-to", eta: "26 Aug, 14:30", varianceMin: 12, source: "Observed", sourceDetail: "GPS position received from MileApp",
+        freshness: "6 min ago", feed: "MileApp GPS", exception: "None", exceptionLevel: "none", progress: 20, distance: "40 of 205 km",
+        currentPlace: "National Route 1, south-west of Thuan An, en route to Can Tho", originTime: "Departed 26 Aug, 09:10", destinationTime: "Expected 26 Aug, 14:30",
+        coords: { origin: [10.884,106.593], current: [10.80,106.55], destination: [10.034,105.788] },
+        travelled: [[10.884,106.593],[10.925,106.713],[10.80,106.55]], remaining: [[10.80,106.55],[10.4,106.1],[10.034,105.788]],
+        tripJourney: [{ trip: "TR-9304", route: "MDC Hoc Mon → Thuan An → Can Tho", status: "Current", vehicle: "50H-661.09" }]
       },
       {
-        order: "SO-260826-2301", trip: "TR-9304", vehicle: "D 8821 TNK", vehicleType: "Fuso Box", carrier: "PT Lintas Nusantara", mapMode: "Truck",
-        customer: "Bandung DC", channel: "GT", origin: "Cikarang MDC", destination: "Bandung DC", route: "Cikarang MDC → Bandung DC", stage: "At Destination",
-        current: "POD Completed", next: "POD Completed", eta: "Arrived 26 Aug, 11:35 WIB", varianceMin: -20, source: "Observed", sourceDetail: "POD captured via MileApp",
-        freshness: "Delivered 42 min ago", feed: "MileApp POD capture", exception: "None", exceptionLevel: "none", progress: 100, distance: "148 of 148 km",
-        currentPlace: "Bandung DC", originTime: "Departed 26 Aug, 09:10 WIB", destinationTime: "Arrived 26 Aug, 11:35 WIB",
-        coords: { origin: [-6.3079,107.1721], current: [-6.9175,107.6191], destination: [-6.9175,107.6191] },
-        travelled: [[-6.3079,107.1721],[-6.55,107.3],[-6.75,107.45],[-6.9175,107.6191]], remaining: [[-6.9175,107.6191]],
+        order: "SO-260826-2301", trip: "TR-9304", vehicle: "50H-661.09", vehicleType: "Flatbed Truck", carrier: "Song Hau Trans Co Ltd", mapMode: "Truck",
+        customer: "YCH DC Thuan An", channel: "GT", origin: "MDC Hoc Mon", destination: "YCH DC Thuan An", route: "MDC Hoc Mon → Thuan An", stage: "At Destination",
+        current: "POD Completed", next: "POD Completed", eta: "Arrived 26 Aug, 09:35", varianceMin: -20, source: "Observed", sourceDetail: "POD captured via MileApp",
+        freshness: "Delivered 40 min ago", feed: "MileApp POD capture", exception: "None", exceptionLevel: "none", progress: 100, distance: "25 of 25 km",
+        currentPlace: "YCH DC Thuan An", originTime: "Departed 26 Aug, 09:10", destinationTime: "Arrived 26 Aug, 09:35",
+        coords: { origin: [10.884,106.593], current: [10.925,106.713], destination: [10.925,106.713] },
+        travelled: [[10.884,106.593],[10.925,106.713]], remaining: [[10.925,106.713]],
         deliveredEnRoute: true,
-        tripJourney: [{ trip: "TR-9304", route: "Cikarang MDC → Bandung DC", status: "Completed", vehicle: "D 8821 TNK" }]
+        tripJourney: [{ trip: "TR-9304", route: "MDC Hoc Mon → Thuan An", status: "Completed", vehicle: "50H-661.09" }]
+      },
+      // The frozen worked example (KB/CT_TCT_SPVB_Working_File_v7.md, VD4):
+      // 1,120 cases of Pepsi 390ml PET, 28 pallets, MDC Hoc Mon to Nam Can
+      // Tho Distribution, delivered inside its 12:00 to 15:00 window. Shown
+      // here as delivered and closed, matching V4's illustrative timeline.
+      {
+        order: "SO-260826-2214", trip: "VN-TR-2214", vehicle: "61C-214.85", vehicleType: "Wingbox 20ft", carrier: "Truong Phat Van Tai JSC", mapMode: "Truck",
+        customer: "Nam Can Tho Distribution", channel: "GT", origin: "MDC Hoc Mon", destination: "Nam Can Tho Distribution", route: "MDC Hoc Mon → Thuan An → Can Tho → Nam Can Tho Distribution", stage: "At Destination",
+        current: "POD Completed", next: "POD Completed", eta: "Arrived 26 Aug, 13:35", varianceMin: -25, source: "Observed", sourceDetail: "POD captured via MileApp",
+        freshness: "12 min ago", feed: "MileApp POD capture", exception: "None", exceptionLevel: "none", progress: 100, distance: "205 of 205 km",
+        currentPlace: "Nam Can Tho Distribution (1,120 cases Pepsi 390ml PET, 28 pallets; delivery window 12:00 to 15:00)",
+        originTime: "Departed 26 Aug, 06:30", destinationTime: "Arrived 26 Aug, 13:35",
+        coords: { origin: [10.884,106.593], current: [10.034,105.788], destination: [10.034,105.788] },
+        travelled: [[10.884,106.593],[10.925,106.713],[10.034,105.788]], remaining: [[10.034,105.788]],
+        tripJourney: [{ trip: "VN-TR-2214", route: "MDC Hoc Mon → Can Tho", status: "Current", vehicle: "61C-214.85" }]
       }
     ];
     orders.push(...multiLegCases);
@@ -1267,8 +1298,14 @@
     const liveOrders = orders.filter(order => order.stage !== "Return");
     const liveTrips = trips.filter(trip => trip.stage !== "Return");
 
+    /* Milestone 4, "Truck queue in", is live for this scope (VD5): it is
+       active in Vietnam, unlike the Indonesian scope where it was flagged
+       Vietnam-only and excluded here. It sits between Truck confirmed
+       (Planning, excluded from this widget per LS-D011) and Truck Checked
+       in. Not customer-visible per D84, so it is absent from
+       spvbJourneyMilestones below. */
     const orderJourneyMilestones = [
-      "Truck Checked in", "Pick completed", "Truck Docked in", "Truck Docked out",
+      "Truck Queue in", "Truck Checked in", "Pick completed", "Truck Docked in", "Truck Docked out",
       "Ex-Warehouse", "In transit", "Arrived at Ship-to", "POD Completed"
     ];
 
@@ -1284,6 +1321,7 @@
     const spvbMilestoneMap = {
       "route planned": "Order received",
       "truck confirmed": "Order received",
+      "truck queue in": "Order received",
       "truck checked in": "Order received",
       "pick completed": "Pick completed",
       "truck docked in": "Pick completed",
@@ -2041,7 +2079,7 @@
       // order's own ETA. SPVB's shorter list drops the internal-only steps
       // (Truck Docked in/out) but keeps the same anchor times for the ones
       // it shares with the coordinator view, so the two stay comparable.
-      const preTransitMinutes = isSpvb ? [425, 438, 462, 483] : [425, 438, 449, 456, 462, 483];
+      const preTransitMinutes = isSpvb ? [425, 438, 462, 483] : [415, 425, 438, 449, 456, 462, 483];
       while (arrivalMinutes <= preTransitMinutes[preTransitMinutes.length - 1]) arrivalMinutes += 1440;
       const milestoneMinutes = [...preTransitMinutes, arrivalMinutes, arrivalMinutes + 30];
       const expectedTimes = milestoneMinutes.map(toTime);
