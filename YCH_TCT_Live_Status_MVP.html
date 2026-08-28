@@ -3,24 +3,33 @@
   Section map (line numbers; re-check with `grep -n` after edits that add/remove lines above a target).
   Keep this map in sync when structure changes; inspect only the range you need, not the whole file.
 
-  L29-697   <style> block (all CSS)
-  L699-873  <body> markup
-    L701-722   topbar header, incl. the role-switch (Coordinator / Customer view)
-    L746-768   metric-grid summary section
-    L769-831   entity-list panel (table and network views)
-    L836-870   detail drawer: Journey, prominent map and Trip order list
-  L882-2287 <script> block
-    L883-1235  synthetic data and trip generation: Vietnam/SPVB network
-               (orders array and generatedRouteTemplates, L894-1067),
+  L34-697   <style> block (all CSS)
+  L702-876  <body> markup
+    L704-726   topbar header, incl. the role-switch (Coordinator / Customer view)
+    L750-772   metric-grid summary section (repurposed for exception counts on
+               the Exceptions perspective, see updateExceptionMetrics)
+    L773-835   entity-list panel: perspective switch (Trips / Orders /
+               Exceptions), journey-stage chips, table and network views
+    L840-873   detail drawer: Journey, prominent map, Trip order list and
+               Exception history
+  L899-2472 <script> block
+    L900-1238  synthetic data and trip generation: Vietnam/SPVB network
+               (orders array and generatedRouteTemplates, L911-1084),
                multiLegCases (STO/SO multi-leg cases plus the frozen VN-TR-2214
-               worked example, L1100-1220), and buildTrips
-    L1237-1268 shared state and utilities
-    L1348-1452 table rendering and filtering
-    L1513-1995 map rendering (detail and network)
-    L2058-2170 drawer open/close and journey population, incl. legDestination
-               and deliveredEnRoute handling, and the 9-milestone coordinator
-               list vs. spvbJourneyMilestones' 6-milestone customer list
-    L2171-2287 remaining filters, search, and event wiring
+               worked example, L1117-1237), and buildTrips
+    L1240-1372 shared state and utilities, incl. allExceptionEntries (the
+               flattened per-exception list behind the Exceptions perspective)
+    L1441-1533 table rendering and filtering: filteredEntities/renderTable for
+               Trips and Orders, filteredExceptionEntries/renderExceptionsTable
+               and updateExceptionMetrics for the Exceptions perspective
+    L1727-2185 map rendering (detail and network)
+    L2186-2340 drawer open/close and journey population, incl. legDestination
+               and deliveredEnRoute handling, the 9-milestone coordinator
+               list vs. spvbJourneyMilestones' 6-milestone customer list, and
+               exceptionHistoryFor/renderExceptionHistory (the drawer's own
+               Exception history card, distinct from the Exceptions
+               perspective's fleet-wide table above)
+    L2341-2472 remaining filters, search, and event wiring
 -->
 <html lang="en">
 <head>
@@ -736,6 +745,7 @@
               <div class="perspective-switch" role="group" aria-label="Operational perspective">
                 <button id="trips-perspective-button" class="active" type="button" aria-pressed="true">▣ Trips</button>
                 <button id="orders-perspective-button" type="button" aria-pressed="false">▤ Orders</button>
+                <button id="exceptions-perspective-button" type="button" aria-pressed="false">⚠ Exceptions</button>
               </div>
               <span class="explain-marker" tabindex="0" role="button" aria-label="Explain Orders and Trips perspectives" aria-describedby="explanation-popover" aria-expanded="false" data-explain="Orders follow customer fulfilment and milestones. Trips follow the vehicle, route and position. Use the switch to change the counting unit throughout the page.">!</span>
             </div>
@@ -794,7 +804,9 @@
               </select>
               <select id="exception-filter" class="select-control" aria-label="Filter by exception">
                 <option value="All">All exception states</option>
-                <option value="Open">Open exception</option>
+                <option value="Open">Open</option>
+                <option value="Snoozed">Snoozed</option>
+                <option value="Resolved">Resolved</option>
                 <option value="None">No exception</option>
               </select>
               <button id="clear-filters" class="clear-filters" type="button">Clear filters</button>
@@ -1320,6 +1332,14 @@
     const trips = buildTrips();
     const liveOrders = orders.filter(order => order.stage !== "Return");
     const liveTrips = trips.filter(trip => trip.stage !== "Return");
+    /* Flattened exception feed (explicit user requirement, 2026-08-28): one
+       row per exception event, across every live order, for the dedicated
+       Exceptions perspective. Built once orders are final; exceptionHistoryFor
+       is a function declaration further down and is hoisted, so it is
+       already callable here. */
+    const allExceptionEntries = liveOrders.flatMap(order => exceptionHistoryFor(order).map((entry, index) => ({
+      ...entry, id: `${order.order}-${index}`, order: order.order, trip: order.trip, shipTo: order.customer, channel: order.channel
+    })));
 
     /* Milestone 4, "Truck queue in", is live for this scope (VD5): it is
        active in Vietnam, unlike the Indonesian scope where it was flagged
@@ -1456,20 +1476,22 @@
           ? [entity.order, entity.customer, entity.channel, entity.trip, entity.route, entity.current, entity.next, entity.exception].join(" ").toLowerCase()
           : [entity.trip, entity.orderIds.join(" "), entity.shipTo, entity.channel, entity.route, entity.current, entity.exception].join(" ").toLowerCase();
         const metricMatch = state.metric === "all"
-          || (state.metric === "exceptions" && entity.exception !== "None")
+          || (state.metric === "exceptions" && latestExceptionStatus(entity, state.perspective === "orders") === "Open")
           || (state.metric === "late" && entity.stage === "In Transit" && entity.varianceMin > 30)
           || (state.metric === "attention" && (state.perspective === "trips"
             ? entity.stage === "In Transit" && entity.source !== "Observed"
             : entity.stage === "At Destination" && entity.current !== "POD Completed"));
+        const status = latestExceptionStatus(entity, state.perspective === "orders");
         return metricMatch
           && matchesJourneyStage(entity)
           && (state.source === "All" || entity.source === state.source)
-          && (state.exception === "All" || (state.exception === "Open" ? entity.exception !== "None" : entity.exception === "None"))
+          && (state.exception === "All" || (state.exception === "None" ? !status : status === state.exception))
           && (!q || text.includes(q));
       });
     }
 
     function renderTable() {
+      if (state.perspective === "exceptions") { renderExceptionsTable(); return; }
       const filtered = filteredEntities();
       const isOrders = state.perspective === "orders";
       document.getElementById("entity-table-head").innerHTML = isOrders
@@ -1483,7 +1505,7 @@
           <td>${escapeHtml(entity.route)}${entity.legDestination ? `<span class="subtext">Current trip ends at ${escapeHtml(entity.legDestination)}, then continues to ${escapeHtml(entity.destination)}</span>` : entity.deliveredEnRoute ? `<span class="subtext">Delivered at an earlier stop; the trip continues</span>` : ""}</td>
           <td>${etaCell(entity)}</td>
           <td><span class="badge ${sourceClass(entity.source)}">${escapeHtml(entity.source)}</span><span class="subtext">Inherited from ${escapeHtml(entity.trip)}</span></td>
-          <td class="exception-cell">${entity.exception === "None" ? '<span class="none">None</span>' : `<span class="badge ${entity.exceptionLevel}">${escapeHtml(entity.exception)}</span>`}</td>
+          <td class="exception-cell">${exceptionCell(entity, true)}</td>
         </tr>` : `
         <tr tabindex="0" data-entity="${escapeHtml(entity.trip)}" aria-label="Open trip ${escapeHtml(entity.trip)} detail">
           <td><span class="order-link">${escapeHtml(entity.trip)}</span><span class="subtext">${escapeHtml(entity.route)}</span></td>
@@ -1492,12 +1514,65 @@
           <td>${escapeHtml(entity.route)}</td>
           <td>${etaCell(entity)}</td>
           <td><span class="badge ${sourceClass(entity.source)}">${escapeHtml(entity.source)}</span><span class="subtext">${escapeHtml(entity.freshness)}</span></td>
-          <td class="exception-cell">${entity.exceptionCount === 0 ? '<span class="none">None</span>' : `<span class="badge ${entity.exceptionLevel}">${escapeHtml(entity.exception)}</span>${entity.exceptionCount > 1 ? `<span class="subtext">+${entity.exceptionCount - 1} more exception${entity.exceptionCount === 2 ? "" : "s"}</span>` : ""}`}</td>
+          <td class="exception-cell">${exceptionCell(entity, false)}</td>
         </tr>`).join("");
       const total = isOrders ? liveOrders.length : liveTrips.length;
       els.empty.classList.toggle("visible", filtered.length === 0);
       bindRows();
       if (state.view === "network") renderNetwork(filtered);
+    }
+
+    /* The Exceptions perspective (explicit user requirement, 2026-08-28):
+       a client should see every exception's status in one list, without
+       opening each order or trip in turn. It reuses the same table shell,
+       search box and status filter as Orders/Trips, but its own columns,
+       filter and metrics, since an exception event is not an order or a
+       trip. Journey stage, Network view and the source filter do not apply
+       here and are hidden by setPerspective. */
+    function filteredExceptionEntries() {
+      const q = state.query.trim().toLowerCase();
+      return allExceptionEntries.filter(entry => {
+        const text = [entry.type, entry.order, entry.trip, entry.shipTo, entry.note].join(" ").toLowerCase();
+        return (state.exception === "All" || entry.status === state.exception) && (!q || text.includes(q));
+      });
+    }
+
+    function renderExceptionsTable() {
+      const filtered = filteredExceptionEntries();
+      document.getElementById("entity-table-head").innerHTML = `<th scope="col">Exception</th><th scope="col">Order</th><th scope="col">Trip</th><th scope="col">Ship-to</th><th scope="col">Status</th><th scope="col">Raised</th>`;
+      els.body.innerHTML = filtered.map(entry => `
+        <tr tabindex="0" data-order="${escapeHtml(entry.order)}" aria-label="Open order ${escapeHtml(entry.order)} detail">
+          <td><strong>${escapeHtml(entry.type)}</strong>${entry.note ? `<span class="subtext">${escapeHtml(entry.note)}</span>` : ""}</td>
+          <td><span class="order-link">${escapeHtml(entry.order)}</span></td>
+          <td><span class="linked-entity">${escapeHtml(entry.trip)}</span></td>
+          <td><strong>${escapeHtml(entry.shipTo)}</strong><span class="channel-badge">${escapeHtml(entry.channel)}</span></td>
+          <td><span class="badge ${exceptionStatusClass(entry)}">${escapeHtml(entry.status)}</span></td>
+          <td>${escapeHtml(entry.raisedAt)}${entry.updatedAt && entry.updatedAt !== entry.raisedAt ? `<span class="subtext">Updated ${escapeHtml(entry.updatedAt)}</span>` : ""}</td>
+        </tr>`).join("");
+      els.empty.classList.toggle("visible", filtered.length === 0);
+      els.body.querySelectorAll("tr").forEach(row => {
+        const open = () => openOrderDrawer(orders.find(order => order.order === row.dataset.order), row);
+        row.addEventListener("click", open);
+        row.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); open(); } });
+      });
+    }
+
+    function updateExceptionMetrics() {
+      const openCount = allExceptionEntries.filter(entry => entry.status === "Open").length;
+      const snoozedCount = allExceptionEntries.filter(entry => entry.status === "Snoozed").length;
+      const resolvedCount = allExceptionEntries.filter(entry => entry.status === "Resolved").length;
+      document.getElementById("metric-active").textContent = allExceptionEntries.length;
+      document.getElementById("metric-active-label").textContent = "Total Exceptions";
+      document.getElementById("metric-route-context").textContent = `Across ${liveOrders.length} active orders`;
+      document.getElementById("metric-origin").textContent = openCount;
+      document.getElementById("metric-secondary-label").textContent = "Open";
+      document.getElementById("metric-secondary-context").textContent = "Needs coordinator action";
+      document.getElementById("metric-transit").textContent = snoozedCount;
+      document.getElementById("metric-transit-label").textContent = "Snoozed";
+      document.getElementById("metric-position-context").textContent = "Deferred, due to reopen";
+      document.getElementById("metric-exceptions").textContent = resolvedCount;
+      document.getElementById("metric-exception-label").textContent = "Resolved";
+      document.getElementById("metric-exception-context").textContent = "Closed out";
     }
 
     function bindRows() {
@@ -1599,10 +1674,31 @@
       selectedNetworkRoute = null;
       routeRequestToken += 1;
       const isOrders = perspective === "orders";
+      const isExceptions = perspective === "exceptions";
       document.getElementById("orders-perspective-button").classList.toggle("active", isOrders);
-      document.getElementById("trips-perspective-button").classList.toggle("active", !isOrders);
+      document.getElementById("trips-perspective-button").classList.toggle("active", perspective === "trips");
+      document.getElementById("exceptions-perspective-button").classList.toggle("active", isExceptions);
       document.getElementById("orders-perspective-button").setAttribute("aria-pressed", String(isOrders));
-      document.getElementById("trips-perspective-button").setAttribute("aria-pressed", String(!isOrders));
+      document.getElementById("trips-perspective-button").setAttribute("aria-pressed", String(perspective === "trips"));
+      document.getElementById("exceptions-perspective-button").setAttribute("aria-pressed", String(isExceptions));
+      document.querySelector(".journey-filter").style.display = isExceptions ? "none" : "";
+      document.querySelector(".view-toggle").style.display = isExceptions ? "none" : "";
+      els.source.style.display = isExceptions ? "none" : "";
+      document.querySelectorAll(".metric-card").forEach(card => { card.classList.remove("selected"); card.setAttribute("aria-pressed", "false"); });
+
+      if (isExceptions) {
+        document.getElementById("entity-list-heading").textContent = "All exceptions";
+        document.getElementById("entity-table").setAttribute("aria-label", "Exception history across active orders");
+        els.search.placeholder = "Search exceptions, orders or ship-tos";
+        els.search.setAttribute("aria-label", "Search exceptions, orders or ship-tos");
+        document.getElementById("empty-title").textContent = "No exceptions match these filters";
+        document.getElementById("empty-copy").textContent = "Clear one or more filters to restore the exception list.";
+        setView("journey");
+        updateExceptionMetrics();
+        renderTable();
+        return;
+      }
+
       document.getElementById("entity-list-heading").textContent = isOrders ? "Active orders" : "Active trips";
       document.getElementById("entity-table").setAttribute("aria-label", isOrders ? "Active transport orders" : "Active transport trips");
       document.getElementById("lane-list-heading").textContent = isOrders ? "Active orders" : "Active trips";
@@ -1616,7 +1712,6 @@
         button.classList.toggle("active", active);
         button.setAttribute("aria-selected", String(active));
       });
-      document.querySelectorAll(".metric-card").forEach(card => { card.classList.remove("selected"); card.setAttribute("aria-pressed", "false"); });
       updateCounts();
       renderTable();
     }
@@ -2174,6 +2269,28 @@
       return entry.status === "Resolved" ? "green" : entry.status === "Snoozed" ? "gray" : entry.level;
     }
 
+    /* Status at a glance (explicit user requirement, 2026-08-28): a client
+       scanning the table, not opening every drawer, should be able to tell
+       Open from Snoozed from Resolved. `latestExceptionStatus` picks the
+       most urgent status present (Open beats Snoozed beats Resolved) across
+       an order's own history, or across every order a trip carries.
+       `exceptionCell` is the shared table-cell renderer for both. */
+    function latestExceptionStatus(entity, isOrders) {
+      const entries = isOrders ? exceptionHistoryFor(entity) : entity.orders.flatMap(order => exceptionHistoryFor(order));
+      if (!entries.length) return null;
+      if (entries.some(entry => entry.status === "Open")) return "Open";
+      if (entries.some(entry => entry.status === "Snoozed")) return "Snoozed";
+      return "Resolved";
+    }
+
+    function exceptionCell(entity, isOrders) {
+      const status = latestExceptionStatus(entity, isOrders);
+      if (!status) return '<span class="none">None</span>';
+      const badgeClass = status === "Resolved" ? "green" : status === "Snoozed" ? "gray" : entity.exceptionLevel;
+      const moreCount = !isOrders && entity.exceptionCount > 1 ? entity.exceptionCount - 1 : 0;
+      return `<span class="badge ${badgeClass}">${escapeHtml(status)}</span><span class="subtext">${escapeHtml(entity.exception)}${moreCount ? ` · +${moreCount} more exception${moreCount === 1 ? "" : "s"}` : ""}</span>`;
+    }
+
     function renderExceptionHistory(entity, isOrders) {
       const list = document.getElementById("exception-history-list");
       const entries = isOrders
@@ -2281,6 +2398,17 @@
     document.querySelectorAll(".stage-chip").forEach(button => button.addEventListener("click", () => setStage(button.dataset.stage)));
     document.querySelectorAll(".metric-card").forEach(card => card.addEventListener("click", () => {
       const metric = card.dataset.metric;
+      if (state.perspective === "exceptions") {
+        state.exception = metric === "primary" ? "All" : metric === "exceptions" ? "Open" : metric === "late" ? "Snoozed" : "Resolved";
+        els.exception.value = state.exception;
+        document.querySelectorAll(".metric-card").forEach(metricCard => {
+          const active = metricCard === card;
+          metricCard.classList.toggle("selected", active);
+          metricCard.setAttribute("aria-pressed", String(active));
+        });
+        renderTable();
+        return;
+      }
       if (metric === "primary") {
         setStage(state.perspective === "orders" ? "All" : "In Transit");
         return;
@@ -2301,6 +2429,7 @@
     }));
     document.getElementById("orders-perspective-button").addEventListener("click", () => setPerspective("orders"));
     document.getElementById("trips-perspective-button").addEventListener("click", () => setPerspective("trips"));
+    document.getElementById("exceptions-perspective-button").addEventListener("click", () => setPerspective("exceptions"));
     document.getElementById("role-coordinator-button").addEventListener("click", () => setRole("coordinator"));
     document.getElementById("role-spvb-button").addEventListener("click", () => setRole("spvb"));
     els.search.addEventListener("input", event => { state.query = event.target.value; els.globalSearch.value = event.target.value; renderTable(); });
@@ -2334,6 +2463,7 @@
     setPerspective("trips");
     const pageParameters = new URLSearchParams(window.location.search);
     if (pageParameters.get("perspective") === "orders") setPerspective("orders");
+    if (pageParameters.get("perspective") === "exceptions") setPerspective("exceptions");
     if (pageParameters.get("role") === "spvb") setRole("spvb");
     if (pageParameters.get("view") === "network") setView("network");
     const requestedFleetOrder = pageParameters.get("fleet");
