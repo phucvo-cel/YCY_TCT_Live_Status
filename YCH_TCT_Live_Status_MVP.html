@@ -3,19 +3,21 @@
   Section map (line numbers; re-check with `grep -n` after edits that add/remove lines above a target).
   Keep this map in sync when structure changes; inspect only the range you need, not the whole file.
 
-  L11-623   <style> block (all CSS)
-  L625-824  <body> markup
-    L627-641   topbar header
-    L670-692   metric-grid summary section
-    L693-766   entity-list panel (main table)
-    L767-824   drawer: milestone-card, map-card, route-summary, info-grid, relationship-card
-  L826-1813 <script> block
-    L923-1091  synthetic data generation (generatedStageDetails, interpolatePosition, buildTrips)
-    L1092-1116 shared state (state, els, displayValue, escapeHtml)
-    L1120-1310 table rendering and filtering (renderTable, filteredEntities, setStage, updateCounts)
-    L1326-1502 map rendering (Leaflet: tileLayer, markerIcon, renderNetwork, drawSelectedNetworkRoute)
-    L1565-1700 drawer open/close and journey/route detail population
-    L1700-1813 remaining filters, search, and event wiring
+  L29-688   <style> block (all CSS)
+  L690-864  <body> markup
+    L692-706   topbar header
+    L730-752   metric-grid summary section
+    L753-815   entity-list panel (table and network views)
+    L820-861   detail drawer: Journey, prominent map and Trip order list
+  L866-2148 <script> block
+    L867-1226  synthetic data and trip generation, incl. multiLegCases (STO/SO
+               multi-leg cases, L1081-1165) and buildTrips
+    L1228-1259 shared state and utilities
+    L1339-1443 table rendering and filtering
+    L1504-1936 map rendering (detail and network)
+    L1937-2027 drawer open/close and journey population, incl. legDestination
+               handling in openOrderDrawer and openTripDrawer
+    L2027-2148 remaining filters, search, and event wiring
 -->
 <html lang="en">
 <head>
@@ -27,7 +29,7 @@
   <link rel="preconnect" href="https://basemaps.cartocdn.com">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,500,1,0&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');
 
     :root {
       --gunmetal: #24333f;
@@ -179,6 +181,12 @@
 
     .top-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 
+    .role-switch-group { display: flex; align-items: center; gap: 8px; margin-right: 4px; }
+    .role-switch-label { color: #c8d0d5; font-size: 11px; font-weight: 600; white-space: nowrap; }
+    .role-switch { display: inline-flex; padding: 3px; border: 1px solid #536572; border-radius: 7px; background: #314553; }
+    .role-switch button { min-width: 84px; min-height: 30px; padding: 0 10px; border: 0; border-radius: 5px; color: #c8d0d5; background: transparent; font-size: 12px; font-weight: 700; }
+    .role-switch button.active { color: var(--gunmetal); background: white; }
+
     .top-icon {
       width: 38px;
       height: 38px;
@@ -202,7 +210,11 @@
       font-weight: 700;
     }
 
-    .workspace { display: grid; grid-template-columns: 224px minmax(0, 1fr); min-height: calc(100vh - 56px); }
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      min-height: calc(100vh - 56px);
+    }
 
     .sidebar {
       position: sticky;
@@ -259,7 +271,12 @@
     .breadcrumb span { color: var(--ink); font-weight: 600; }
 
     .page-header { display: flex; align-items: flex-start; gap: 20px; margin-bottom: 20px; }
-    .page-heading { min-width: 0; }
+    .page-heading {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
 
     h1, h2, h3, h4 { margin: 0; font-family: "Plus Jakarta Sans", sans-serif; }
     h1 { font-size: 26px; line-height: 1.25; color: var(--gunmetal); }
@@ -268,14 +285,19 @@
 
     .page-subtitle { margin: 6px 0 0; color: var(--muted); }
 
-    .perspective-row { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+    .perspective-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 0;
+    }
     .perspective-switch { display: inline-flex; padding: 3px; border: 1px solid var(--border-strong); border-radius: 7px; background: white; }
     .perspective-switch button { min-width: 92px; min-height: 36px; padding: 0 14px; border: 0; border-radius: 5px; color: var(--muted); background: transparent; font-weight: 700; }
     .perspective-switch button.active { color: white; background: var(--gunmetal); box-shadow: 0 2px 7px rgba(25,39,49,.16); }
     .perspective-help { max-width: 540px; margin: 0; color: var(--muted); font-size: 11px; }
     .label-with-explanation, .heading-with-explanation { display: inline-flex; align-items: center; gap: 6px; }
     .explain-marker {
-      display: inline-grid;
+      display: none;
       place-items: center;
       flex: 0 0 18px;
       width: 18px;
@@ -448,7 +470,7 @@
     .network-view.active { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, .45fr); gap: 16px; }
     .network-map-shell { position: relative; min-width: 0; }
     #network-map { min-height: 520px; border: 1px solid var(--border); border-radius: 6px; background: #e9eef1; }
-    .fleet-legend, .network-selection {
+    .network-selection {
       position: absolute;
       z-index: 500;
       border: 1px solid rgba(199, 208, 214, .9);
@@ -457,9 +479,6 @@
       box-shadow: 0 4px 14px rgba(25, 39, 49, .12);
       backdrop-filter: blur(6px);
     }
-    .fleet-legend { top: 12px; right: 12px; display: flex; gap: 12px; padding: 7px 10px; color: var(--gunmetal); font-size: 10px; font-weight: 700; }
-    .fleet-legend span { display: inline-flex; align-items: center; gap: 5px; }
-    .fleet-symbol { color: #b88700; font-size: 17px !important; line-height: 1; }
     .network-selection { left: 58px; top: 12px; display: none; max-width: 280px; padding: 10px 12px; }
     .network-selection.visible { display: block; }
     .network-selection strong { display: block; color: var(--gunmetal); }
@@ -510,51 +529,53 @@
     .close-button:hover { background: var(--surface-soft); }
     .drawer-scroll { overflow-y: auto; padding: 18px 22px 32px; }
 
-    .map-layout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(270px, .55fr); gap: 16px; }
+    .map-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 16px;
+    }
     .map-card, .detail-card { border: 1px solid var(--border); border-radius: var(--radius); background: white; }
     .map-card { overflow: hidden; }
     .map-card-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border); }
-    .map-legend { display: flex; align-items: center; gap: 14px; color: var(--muted); font-size: 10px; }
-    .legend-line { display: inline-block; width: 24px; height: 4px; margin-right: 5px; border-radius: 2px; vertical-align: middle; }
-    .legend-line.travelled { background: var(--green); }
-    .legend-line.remaining { background: var(--amber); }
-    #detail-map { height: 420px; background: #e9eef1; }
+    .map-legend {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 10px 14px;
+      color: var(--muted);
+      font-size: 10px;
+    }
 
-    .route-summary { padding: 16px; }
-    .route-summary h3 { margin-bottom: 16px; }
-    .progress-value { display: flex; align-items: baseline; justify-content: space-between; }
-    .progress-value strong { font-family: "Plus Jakarta Sans", sans-serif; color: var(--gunmetal); font-size: 26px; }
-    .progress-value span { color: var(--muted); font-size: 11px; }
-    .progress-track { height: 8px; margin: 9px 0 16px; overflow: hidden; border-radius: 4px; background: #f3d9ab; }
-    .progress-bar { height: 100%; border-radius: 4px; background: var(--green); }
-    .route-points { position: relative; margin: 0; padding: 0; list-style: none; }
-    .route-points::before { content: ""; position: absolute; left: 7px; top: 9px; bottom: 10px; width: 2px; background: var(--border-strong); }
-    .route-points li { position: relative; padding: 0 0 16px 25px; }
-    .route-points li:last-child { padding-bottom: 0; }
-    .point-dot { position: absolute; left: 0; top: 4px; width: 16px; height: 16px; border: 4px solid white; border-radius: 50%; box-shadow: 0 0 0 1px var(--border-strong); background: var(--gunmetal); }
-    .point-dot.current { background: var(--red); }
-    .point-dot.destination { background: var(--amber); }
-    .route-points strong { display: block; color: var(--gunmetal); font-size: 12px; }
-    .route-points span { color: var(--muted); font-size: 10px; }
+    .legend-line {
+      display: inline-block;
+      width: 28px;
+      height: 4px;
+      margin-right: 5px;
+      border-radius: 2px;
+      vertical-align: middle;
+    }
 
-    .alert-block { margin-top: 14px; padding: 11px; border: 1px solid #e9c39a; border-radius: 6px; background: #fff8eb; }
-    .alert-block strong { display: block; color: #8e5300; font-size: 11px; }
-    .alert-block span { color: #745a35; font-size: 11px; }
+    .legend-line.travelled {
+      background: var(--green);
+    }
 
-    .info-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
-    .info-card { padding: 14px; border: 1px solid var(--border); border-radius: 6px; background: white; }
-    .info-card .label { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-    .info-card .value { margin-top: 5px; color: var(--gunmetal); font-weight: 700; }
-    .info-card .meta { margin-top: 3px; color: var(--muted); font-size: 11px; }
+    .legend-line.estimated {
+      background: repeating-linear-gradient(
+        to right,
+        var(--amber) 0 6px,
+        transparent 6px 10px
+      );
+    }
 
-    .relationship-card { margin-top: 16px; padding: 16px; border: 1px solid #cddcf0; border-radius: var(--radius); background: #f8fbff; }
-    .relationship-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
-    .relationship-card-header p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
-    .relationship-list { display: grid; gap: 8px; }
-    .relationship-item { display: grid; grid-template-columns: minmax(150px,.6fr) minmax(180px,1fr) minmax(150px,.8fr) auto; align-items: center; gap: 12px; min-height: 48px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: white; }
-    .relationship-item strong { color: var(--gunmetal); font-size: 12px; }
-    .relationship-item span { color: var(--muted); font-size: 11px; }
-    .relationship-item button { min-height: 32px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: 5px; color: var(--blue); background: white; font-size: 10px; font-weight: 700; }
+    .legend-line.remaining {
+      background: repeating-linear-gradient(
+        to right,
+        var(--gunmetal) 0 12px,
+        transparent 12px 18px
+      );
+    }
+    #detail-map { height: clamp(520px, 62vh, 720px); background: #e9eef1; }
 
     .milestone-card { margin-top: 16px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); background: white; }
     .drawer-scroll > .milestone-card:first-child { margin-top: 0; margin-bottom: 16px; }
@@ -562,8 +583,8 @@
     .section-heading p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
     .order-journey { overflow-x: auto; padding: 8px 0 2px; }
     .journey-track { position: relative; display: grid; grid-template-columns: repeat(8, minmax(105px, 1fr)); min-width: 840px; padding: 0 0 12px; }
-    .journey-track::before, .journey-progress-line { content: ""; position: absolute; top: 10px; left: 6.25%; height: 3px; border-radius: 2px; }
-    .journey-track::before { right: 6.25%; background: #c8d0d5; }
+    .journey-track::before, .journey-progress-line { content: ""; position: absolute; top: 10px; left: var(--journey-margin, 6.25%); height: 3px; border-radius: 2px; }
+    .journey-track::before { right: var(--journey-margin, 6.25%); background: #c8d0d5; }
     .journey-progress-line { z-index: 1; background: #315f89; }
     .journey-step { position: relative; z-index: 2; display: flex; min-width: 0; flex-direction: column; align-items: center; padding: 0 5px; text-align: center; }
     .journey-node { display: grid; place-items: center; width: 20px; height: 20px; border: 2px solid #aab6be; border-radius: 50%; color: transparent; background: white; font-size: 10px; font-weight: 700; }
@@ -584,26 +605,40 @@
     .journey-scale-tick.reached { background: #315f89; }
     .journey-scale-tick b { position: absolute; top: 15px; left: 50%; color: var(--muted-2); font-size: 9px; font-variant-numeric: tabular-nums; font-weight: 500; white-space: nowrap; transform: translateX(-50%); }
 
+    .relationship-card { margin-top: 16px; padding: 16px; border: 1px solid #cddcf0; border-radius: var(--radius); background: #f8fbff; }
+    .relationship-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+    .relationship-card-header p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
+    .relationship-list { display: grid; gap: 8px; }
+    .relationship-item { display: grid; grid-template-columns: minmax(150px,.6fr) minmax(180px,1fr) minmax(150px,.8fr) auto; align-items: center; gap: 12px; min-height: 48px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: white; }
+    .relationship-item strong { color: var(--gunmetal); font-size: 12px; }
+    .relationship-item span { color: var(--muted); font-size: 11px; }
+    .relationship-item button { min-height: 32px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: 5px; color: var(--blue); background: white; font-size: 10px; font-weight: 700; }
+
     .leaflet-container { font-family: "DM Sans", sans-serif; }
     .map-marker { display: grid; place-items: center; width: 28px; height: 28px; border: 3px solid white; border-radius: 50% 50% 50% 0; color: white; box-shadow: 0 2px 7px rgba(30,40,48,.28); transform: rotate(-45deg); }
     .map-marker span { transform: rotate(45deg); font-size: 11px; font-weight: 700; }
     .map-marker.origin { background: var(--gunmetal); }
     .map-marker.current { background: var(--red); animation: marker-pulse 2s infinite; }
+    .map-marker.last-observed { background: var(--green); }
+    .map-marker.computed {
+      color: var(--amber);
+      background: white;
+      border-color: var(--amber);
+      animation: none;
+    }
     .map-marker.destination { background: var(--amber); }
-    .material-symbols-rounded { font-family: "Material Symbols Rounded"; font-weight: normal; font-style: normal; font-size: 20px; line-height: 1; letter-spacing: normal; text-transform: none; white-space: nowrap; word-wrap: normal; direction: ltr; font-feature-settings: "liga"; -webkit-font-feature-settings: "liga"; -webkit-font-smoothing: antialiased; }
-    .fleet-marker { position: relative; display: grid; place-items: center; width: 34px; height: 34px; border: 2px solid white; border-radius: 50%; color: var(--gunmetal); background: #f4c430; box-shadow: 0 2px 8px rgba(20, 30, 38, .35); transition: transform 160ms ease-out; }
+    .fleet-marker { position: relative; display: grid; place-items: center; width: 36px; height: 36px; border: 2px solid var(--gunmetal); border-radius: 50%; color: var(--gunmetal); background: white; box-shadow: 0 2px 8px rgba(20, 30, 38, .22); transition: transform 160ms ease-out, color 160ms ease-out, background 160ms ease-out, border-color 160ms ease-out; }
     .fleet-marker:hover, .fleet-marker.selected { transform: scale(1.18); }
-    .fleet-marker.selected { background: rgba(37, 99, 235, .16); box-shadow: 0 0 0 5px rgba(37, 99, 235, .1); }
-    .fleet-marker.selected { color: white; background: var(--blue); }
-    .fleet-marker .material-symbols-rounded { font-size: 20px; }
-    .fleet-marker.ship .material-symbols-rounded { font-size: 21px; }
-    .fleet-alert { position: absolute; right: 1px; top: 1px; width: 8px; height: 8px; border: 2px solid white; border-radius: 50%; background: var(--red); }
+    .fleet-marker.selected { color: white; border-color: var(--blue); background: var(--blue); box-shadow: 0 0 0 5px rgba(37, 99, 235, .12); }
+    .fleet-marker-icon { display: block; width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .fleet-marker.ship .fleet-marker-icon { width: 23px; height: 23px; }
+    .fleet-alert { position: absolute; right: -1px; top: -1px; width: 9px; height: 9px; border: 2px solid white; border-radius: 50%; background: var(--red); }
     .route-casing, .route-base { stroke-linecap: round; stroke-linejoin: round; }
 
     @keyframes marker-pulse { 0%,100% { box-shadow: 0 2px 7px rgba(30,40,48,.28); } 50% { box-shadow: 0 0 0 7px rgba(192,57,43,.18); } }
 
     @media (max-width: 1120px) {
-      .workspace { grid-template-columns: 74px minmax(0, 1fr); }
+      .workspace { grid-template-columns: minmax(0, 1fr); }
       .sidebar { padding: 20px 8px; }
       .nav-section-label, .nav-label, .sidebar-note { display: none; }
       .nav-item { justify-content: center; padding: 0; }
@@ -611,9 +646,7 @@
       .toolbar { flex-wrap: wrap; }
       .view-toggle { margin-left: 0; }
       .map-layout { grid-template-columns: 1fr; }
-      #detail-map { height: 370px; }
-      .route-summary { display: grid; grid-template-columns: 200px 1fr; gap: 20px; }
-      .route-summary h3 { grid-column: 1 / -1; margin-bottom: 0; }
+      #detail-map { height: clamp(500px, 60vh, 680px); }
     }
 
     @media (max-width: 760px) {
@@ -622,6 +655,7 @@
       .brand-text { display: none; }
       .global-search { width: auto; flex: 1; margin-left: 0; }
       .shortcut, .top-icon { display: none; }
+      .role-switch-label { display: none; }
       .workspace { display: block; }
       .sidebar { display: none; }
       .main { padding: 16px 12px 28px; }
@@ -641,10 +675,8 @@
       .detail-drawer { width: 100vw; }
       .drawer-header { padding: 14px; }
       .drawer-scroll { padding: 12px 12px 28px; }
-      .map-layout, .info-grid { grid-template-columns: 1fr; }
-      #detail-map { height: 320px; }
-      .route-summary { display: block; }
-      .route-summary h3 { margin-bottom: 16px; }
+      .map-layout { grid-template-columns: 1fr; }
+      #detail-map { height: clamp(420px, 58vh, 600px); }
       .section-heading { display: block; }
       .relationship-item { grid-template-columns: 1fr; gap: 4px; padding: 12px; }
       .relationship-item button { margin-top: 4px; }
@@ -677,20 +709,22 @@
         <span class="shortcut">Ctrl K</span>
       </label>
       <div class="top-actions">
+        <div class="role-switch-group">
+          <span class="role-switch-label">View as</span>
+          <div class="role-switch" role="group" aria-label="View as">
+            <button id="role-coordinator-button" class="active" type="button" aria-pressed="true">Coordinator</button>
+            <button id="role-spvb-button" type="button" aria-pressed="false">SPVB</button>
+          </div>
+        </div>
         <button class="top-icon" type="button" aria-label="Notifications">●</button>
         <div class="avatar" aria-label="Signed in as Fajar">FA</div>
       </div>
     </header>
 
     <div class="workspace">
-      <aside class="sidebar" aria-label="Primary navigation">
-        <div class="nav-section-label">End-to-End Visibility</div>
-        <button class="nav-item active" type="button" aria-current="page"><span class="nav-icon" aria-hidden="true">◎</span><span class="nav-label">Live Status</span></button>
-        <div class="sidebar-note"><strong>Internal use</strong><br>Operational visibility for Control Tower Coordinators.</div>
-      </aside>
+
 
       <main class="main">
-        <div class="breadcrumb">Control Tower &gt; End-to-End Visibility &gt; <span>Live Status</span></div>
 
         <div class="page-header">
           <div class="page-heading">
@@ -704,7 +738,7 @@
             </div>
           </div>
           <div class="header-meta">
-            <div class="freshness"><span class="label-with-explanation"><strong>● Illustrative MVP data</strong><span class="explain-marker" tabindex="0" role="button" aria-label="Explain illustrative data" aria-describedby="explanation-popover" aria-expanded="false" data-explain="All records and values on this MVP screen are synthesized for demonstration. They are not confirmed YCH operational results.">!</span></span>Snapshot 25 Aug 2026, 14:32</div>
+            <div class="freshness">Snapshot 25 Aug 2026, 14:32</div>
             <button id="refresh-button" class="secondary-button" type="button">↻ Refresh data</button>
           </div>
         </div>
@@ -760,16 +794,12 @@
                 <option value="Open">Open exception</option>
                 <option value="None">No exception</option>
               </select>
+              <button id="clear-filters" class="clear-filters" type="button">Clear filters</button>
               <div class="view-toggle" role="group" aria-label="View type">
                 <button id="journey-view-button" class="active" type="button" aria-pressed="true">☷ Journey</button>
                 <button id="network-view-button" type="button" aria-pressed="false">⌘ Network</button>
               </div>
             </div>
-          </div>
-
-          <div class="result-meta">
-            <span id="result-count" aria-live="polite">Showing 0 active orders</span>
-            <button id="clear-filters" class="clear-filters" type="button">Clear filters</button>
           </div>
 
           <div id="journey-view">
@@ -790,10 +820,6 @@
           <div id="network-view" class="network-view" aria-hidden="true">
             <div class="network-map-shell">
               <div id="network-map" aria-label="Interactive fleet map showing active trucks and ships"></div>
-              <div class="fleet-legend" aria-label="Vehicle symbols">
-                <span><i class="material-symbols-rounded fleet-symbol" aria-hidden="true">local_shipping</i>Truck</span>
-                <span><i class="material-symbols-rounded fleet-symbol" aria-hidden="true">directions_boat</i>Ship</span>
-              </div>
               <div id="network-selection" class="network-selection" aria-live="polite"></div>
             </div>
             <div class="lane-list">
@@ -827,40 +853,26 @@
         <section class="map-card" aria-labelledby="map-heading">
           <div class="map-card-header">
             <span class="heading-with-explanation"><h3 id="map-heading">Live journey map</h3><span class="explain-marker" tabindex="0" role="button" aria-label="Explain journey map" aria-describedby="explanation-popover" aria-expanded="false" data-explain="The map shows trip-owned route and position data. An order inherits the position of its current trip.">!</span></span>
-            <div class="map-legend"><span><i class="legend-line travelled"></i>Travelled</span><span><i class="legend-line remaining"></i>Remaining</span></div>
+            <div class="map-legend">
+              <span><i class="legend-line travelled"></i>Observed · solid</span>
+              <span><i class="legend-line estimated"></i>Estimated GPS gap · short dash</span>
+              <span><i class="legend-line remaining"></i>Destination direction · long dash</span>
+            </div>
           </div>
           <div id="detail-map" aria-label="Interactive CARTO light map showing origin, current position and destination"></div>
         </section>
-        <section class="detail-card route-summary" aria-labelledby="route-summary-heading">
-          <h3 id="route-summary-heading">Route progress</h3>
-          <div>
-            <div class="progress-value"><strong id="progress-percent">0%</strong><span id="distance-summary"></span></div>
-            <div class="progress-track"><div id="progress-bar" class="progress-bar"></div></div>
-          </div>
-          <ul class="route-points">
-            <li><i class="point-dot"></i><strong id="origin-name"></strong><span id="origin-time"></span></li>
-            <li><i class="point-dot current"></i><strong id="current-name"></strong><span id="current-source"></span></li>
-            <li><i class="point-dot destination"></i><strong id="destination-name"></strong><span id="destination-time"></span></li>
-          </ul>
-          <div id="drawer-exception" class="alert-block"></div>
-        </section>
       </div>
 
-      <section class="info-grid" aria-label="Entity and position information">
-        <div class="info-card"><div class="label" id="info-order-label">Order</div><div class="value" id="info-order"></div><div class="meta" id="info-customer"></div></div>
-        <div class="info-card"><div class="label label-with-explanation"><span id="info-ship-to-label">Customer / Ship-to</span><span class="explain-marker" tabindex="0" role="button" aria-label="Explain customer and ship-to" aria-describedby="explanation-popover" aria-expanded="false" data-explain="Customer identifies who receives the order. Ship-to is the physical delivery point. The MVP uses one combined label where both names are the same.">!</span></div><div class="value" id="info-ship-to"></div><div class="meta" id="info-ship-to-meta"></div></div>
-        <div class="info-card"><div class="label label-with-explanation"><span id="info-trip-label">Current trip</span><span class="explain-marker" tabindex="0" role="button" aria-label="Explain current trip" aria-describedby="explanation-popover" aria-expanded="false" data-explain="Current trip is the active execution record carrying the order now. The same order may have completed or planned trips elsewhere in its full journey.">!</span></div><div class="value" id="info-trip"></div><div class="meta" id="info-route"></div></div>
-        <div class="info-card"><div class="label label-with-explanation">Position source <span class="explain-marker" tabindex="0" role="button" aria-label="Explain position source" aria-describedby="explanation-popover" aria-expanded="false" data-explain="Observed means received from a live event or GPS. Computed means estimated from route and milestone data. Manual means entered by a coordinator.">!</span></div><div class="value" id="info-source"></div><div class="meta" id="info-source-detail"></div></div>
-        <div class="info-card"><div class="label">Data freshness</div><div class="value" id="info-freshness"></div><div class="meta" id="info-feed"></div></div>
-        <div class="info-card"><div class="label" id="info-current-label">Current milestone</div><div class="value" id="info-current"></div><div class="meta" id="info-next"></div></div>
-        <div class="info-card"><div class="label">Arrival forecast</div><div class="value" id="info-eta"></div><div class="meta" id="info-variance"></div></div>
+      <section id="trip-orders-card" class="relationship-card" aria-labelledby="trip-orders-heading" hidden>
+        <div class="relationship-card-header">
+          <div>
+            <h3 id="trip-orders-heading">Orders carried on this trip</h3>
+            <p>Sales Orders and Stock Transfer Orders carried by the selected trip.</p>
+          </div>
+          <span class="entity-count" id="trip-orders-count">0 orders</span>
+        </div>
+        <div id="trip-orders-list" class="relationship-list"></div>
       </section>
-
-      <section class="relationship-card" aria-labelledby="relationship-heading">
-        <div class="relationship-card-header"><div><span class="heading-with-explanation"><h3 id="relationship-heading">Linked trips</h3><span class="explain-marker" tabindex="0" role="button" aria-label="Explain linked records" aria-describedby="explanation-popover" aria-expanded="false" data-explain="In Order detail this lists trips used across the order journey. In Trip detail it lists every order carried on the selected trip.">!</span></span><p id="relationship-detail-copy">This order's movement across current and previous trips.</p></div><span class="entity-count" id="relationship-detail-count">0 trips</span></div>
-        <div id="relationship-detail-list" class="relationship-list"></div>
-      </section>
-
     </div>
   </aside>
 
@@ -1070,6 +1082,133 @@
         : [{ trip: order.trip, route: order.route, status: "Current", vehicle: order.vehicle }];
     });
 
+    /* Multi-leg STO/SO illustrative cases (explicit user requirement, 2026-08-27).
+       A trip only ever completes its own physical leg. An order riding that
+       trip reaches POD Completed only once the trip's leg destination is
+       also that order's own final ship-to; otherwise the order's milestone
+       stays behind the trip's, because the goods still have a further trip
+       ahead of them. `legDestination` marks such a through-order and names
+       the point where this trip itself ends. Case 1 and Case 3 show the gap
+       right after the shared trip's leg arrives and its POD is signed. Case
+       2 shows the moment before arrival, when the trip and every order it
+       carries still share one milestone. Case 4 is the mirror image: a true
+       multi-drop trip with two physical stops, where one order can finish
+       ahead of the trip itself because it got off at the earlier stop.
+       `deliveredEnRoute` marks that order and is set once it is at its own
+       final destination while the trip carrying it is still moving. */
+    const multiLegCases = [
+      // Case 1: Cikarang MDC -> Surabaya Hub -> Malang DC. Trip TR-9301 (A to
+      // B) has just arrived and had its POD signed at Surabaya Hub. STOb ends
+      // here, so its own milestone and the trip's milestone both read POD
+      // Completed. SOc's ship-to is Malang DC, one more leg past Surabaya
+      // Hub, so it stays at "In transit" until a further trip carries it on.
+      {
+        order: "STO-260826-2101", trip: "TR-9301", vehicle: "B 9552 LKM", vehicleType: "CDD Box", carrier: "PT Trans Jawa Express", mapMode: "Truck",
+        customer: "Surabaya Hub", channel: "SP", origin: "Cikarang MDC", destination: "Surabaya Hub", route: "Cikarang MDC → Surabaya Hub", stage: "At Destination",
+        current: "POD Completed", next: "POD Completed", eta: "Arrived 26 Aug, 05:40 WIB", varianceMin: -10, source: "Observed", sourceDetail: "POD captured via MileApp",
+        freshness: "3 min ago", feed: "MileApp POD capture", exception: "None", exceptionLevel: "none", progress: 100, distance: "812 of 812 km",
+        currentPlace: "Surabaya Hub", originTime: "Departed 25 Aug, 14:10 WIB", destinationTime: "Arrived 26 Aug, 05:40 WIB",
+        coords: { origin: [-6.3079,107.1721], current: [-7.2575,112.7521], destination: [-7.2575,112.7521] },
+        travelled: [[-6.3079,107.1721],[-6.55,108.2],[-6.88,109.6],[-7.2,110.5],[-7.55,111.86],[-7.2575,112.7521]], remaining: [[-7.2575,112.7521]],
+        tripJourney: [{ trip: "TR-9301", route: "Cikarang MDC → Surabaya Hub", status: "Current", vehicle: "B 9552 LKM" }]
+      },
+      {
+        order: "SO-260826-2102", trip: "TR-9301", vehicle: "B 9552 LKM", vehicleType: "CDD Box", carrier: "PT Trans Jawa Express", mapMode: "Truck",
+        customer: "Malang DC", channel: "SP", origin: "Cikarang MDC", destination: "Malang DC", route: "Cikarang MDC → Surabaya Hub → Malang DC", stage: "In Transit",
+        current: "In transit", next: "Arrived at Ship-to", eta: "26 Aug, 09:15 WIB", varianceMin: 0, source: "Observed", sourceDetail: "GPS position received from MileApp for the current trip leg",
+        freshness: "3 min ago", feed: "MileApp GPS", exception: "None", exceptionLevel: "none", progress: 89, distance: "812 of 908 km",
+        currentPlace: "Surabaya Hub, awaiting the next trip leg to Malang DC", originTime: "Departed 25 Aug, 14:10 WIB", destinationTime: "Expected 26 Aug, 09:15 WIB",
+        coords: { origin: [-6.3079,107.1721], current: [-7.2575,112.7521], destination: [-7.9666,112.6326] },
+        travelled: [[-6.3079,107.1721],[-6.55,108.2],[-6.88,109.6],[-7.2,110.5],[-7.55,111.86],[-7.2575,112.7521]], remaining: [[-7.2575,112.7521],[-7.55,112.70],[-7.9666,112.6326]],
+        legDestination: "Surabaya Hub",
+        tripJourney: [{ trip: "TR-9301", route: "Cikarang MDC → Surabaya Hub", status: "Current", vehicle: "B 9552 LKM" }]
+      },
+      // Case 2: Cikarang MDC -> Solo Hub -> Yogyakarta DC. Trip TR-9302 (A to
+      // B) is still moving and has not reached Solo Hub yet, so SOb (ending
+      // at Solo Hub) and STOc (continuing to Yogyakarta DC) still share one
+      // milestone. They only diverge once this trip arrives and its POD is
+      // signed, the same way Case 1 already has.
+      {
+        order: "SO-260826-2151", trip: "TR-9302", vehicle: "H 7734 MXP", vehicleType: "Tronton Box", carrier: "PT Mitra Angkutan Indonesia", mapMode: "Truck",
+        customer: "Solo Hub", channel: "GT", origin: "Cikarang MDC", destination: "Solo Hub", route: "Cikarang MDC → Solo Hub", stage: "In Transit",
+        current: "In transit", next: "Arrived at Ship-to", eta: "26 Aug, 02:20 WIB", varianceMin: 18, source: "Observed", sourceDetail: "GPS position received from MileApp",
+        freshness: "5 min ago", feed: "MileApp GPS", exception: "None", exceptionLevel: "none", progress: 55, distance: "237 of 430 km",
+        currentPlace: "Toll road, east of Brebes", originTime: "Departed 25 Aug, 16:00 WIB", destinationTime: "Expected 26 Aug, 02:20 WIB",
+        coords: { origin: [-6.3079,107.1721], current: [-7.0051,109.1808], destination: [-7.5755,110.8243] },
+        travelled: [[-6.3079,107.1721],[-6.55,107.9],[-6.8,108.6],[-7.0051,109.1808]], remaining: [[-7.0051,109.1808],[-7.3,110.0],[-7.5755,110.8243]],
+        tripJourney: [{ trip: "TR-9302", route: "Cikarang MDC → Solo Hub", status: "Current", vehicle: "H 7734 MXP" }]
+      },
+      {
+        order: "STO-260826-2152", trip: "TR-9302", vehicle: "H 7734 MXP", vehicleType: "Tronton Box", carrier: "PT Mitra Angkutan Indonesia", mapMode: "Truck",
+        customer: "Yogyakarta DC", channel: "GT", origin: "Cikarang MDC", destination: "Yogyakarta DC", route: "Cikarang MDC → Solo Hub → Yogyakarta DC", stage: "In Transit",
+        current: "In transit", next: "Arrived at Ship-to", eta: "26 Aug, 07:30 WIB", varianceMin: 0, source: "Observed", sourceDetail: "GPS position received from MileApp for the current trip leg",
+        freshness: "5 min ago", feed: "MileApp GPS", exception: "None", exceptionLevel: "none", progress: 48, distance: "237 of 495 km",
+        currentPlace: "Toll road, east of Brebes", originTime: "Departed 25 Aug, 16:00 WIB", destinationTime: "Expected 26 Aug, 07:30 WIB",
+        coords: { origin: [-6.3079,107.1721], current: [-7.0051,109.1808], destination: [-7.7956,110.3695] },
+        travelled: [[-6.3079,107.1721],[-6.55,107.9],[-6.8,108.6],[-7.0051,109.1808]], remaining: [[-7.0051,109.1808],[-7.3,110.0],[-7.5755,110.8243],[-7.7956,110.3695]],
+        legDestination: "Solo Hub",
+        tripJourney: [{ trip: "TR-9302", route: "Cikarang MDC → Solo Hub", status: "Current", vehicle: "H 7734 MXP" }]
+      },
+      // Case 3: Cikarang MDC -> Makassar DC -> Parepare Hub -> Pinrang Hub.
+      // Trip TR-9270 (A to B) already completed earlier. Trip TR-9303 (B to
+      // C) has just arrived and had its POD signed at Parepare Hub. STOc
+      // ends here, so it reads POD Completed with the trip. SOd's ship-to is
+      // Pinrang Hub, one more leg past Parepare Hub, so it stays at "In
+      // transit" and still carries its full two-trip history.
+      {
+        order: "STO-260826-2201", trip: "TR-9303", vehicle: "B 9210 RQS", vehicleType: "CDD Box", carrier: "PT Andalan Transportasi", mapMode: "Truck",
+        customer: "Parepare Hub", channel: "MT", origin: "Makassar DC", destination: "Parepare Hub", route: "Makassar DC → Parepare Hub", stage: "At Destination",
+        current: "POD Completed", next: "POD Completed", eta: "Arrived 26 Aug, 10:05 WITA", varianceMin: -15, source: "Observed", sourceDetail: "POD captured via MileApp",
+        freshness: "4 min ago", feed: "MileApp POD capture", exception: "None", exceptionLevel: "none", progress: 100, distance: "155 of 155 km",
+        currentPlace: "Parepare Hub", originTime: "Departed 26 Aug, 06:40 WITA", destinationTime: "Arrived 26 Aug, 10:05 WITA",
+        coords: { origin: [-5.1477,119.4327], current: [-4.0096,119.6291], destination: [-4.0096,119.6291] },
+        travelled: [[-5.1477,119.4327],[-4.85,119.5],[-4.4,119.58],[-4.0096,119.6291]], remaining: [[-4.0096,119.6291]],
+        tripJourney: [{ trip: "TR-9303", route: "Makassar DC → Parepare Hub", status: "Current", vehicle: "B 9210 RQS" }]
+      },
+      {
+        order: "SO-260826-2202", trip: "TR-9303", vehicle: "B 9210 RQS", vehicleType: "CDD Box", carrier: "PT Andalan Transportasi", mapMode: "Truck",
+        customer: "Pinrang Hub", channel: "MT", origin: "Cikarang MDC", destination: "Pinrang Hub", route: "Cikarang MDC → Makassar DC → Parepare Hub → Pinrang Hub", stage: "In Transit",
+        current: "In transit", next: "Arrived at Ship-to", eta: "26 Aug, 13:30 WITA", varianceMin: 0, source: "Observed", sourceDetail: "GPS position received from MileApp for the current trip leg",
+        freshness: "4 min ago", feed: "MileApp GPS", exception: "None", exceptionLevel: "none", progress: 97, distance: "1,579 of 1,629 km",
+        currentPlace: "Parepare Hub, awaiting the next trip leg to Pinrang Hub", originTime: "Departed 25 Aug, 07:42 WIB", destinationTime: "Expected 26 Aug, 13:30 WITA",
+        coords: { origin: [-6.3079,107.1721], current: [-4.0096,119.6291], destination: [-3.7854,119.6521] },
+        travelled: [[-6.3079,107.1721],[-5.9,110.1],[-5.622,112.42],[-5.1477,119.4327],[-4.85,119.5],[-4.4,119.58],[-4.0096,119.6291]], remaining: [[-4.0096,119.6291],[-3.7854,119.6521]],
+        legDestination: "Parepare Hub",
+        tripJourney: [
+          { trip: "TR-9270", route: "Cikarang MDC → Makassar DC", status: "Completed", vehicle: "Previous vehicle (sea transport)" },
+          { trip: "TR-9303", route: "Makassar DC → Parepare Hub", status: "Current", vehicle: "B 9210 RQS" }
+        ]
+      },
+      // Case 4: Cikarang MDC -> Bandung DC -> Garut Hub, one truck, one trip,
+      // two physical stops. SOe (ending at Bandung DC, the first stop) was
+      // already delivered and its POD signed while the same trip is still on
+      // the road to Garut Hub with STOf. SOe's own milestone therefore reads
+      // POD Completed ahead of the trip, which itself only finishes once it
+      // reaches its second stop.
+      {
+        order: "STO-260826-2302", trip: "TR-9304", vehicle: "D 8821 TNK", vehicleType: "Fuso Box", carrier: "PT Lintas Nusantara", mapMode: "Truck",
+        customer: "Garut Hub", channel: "GT", origin: "Cikarang MDC", destination: "Garut Hub", route: "Cikarang MDC → Bandung DC → Garut Hub", stage: "In Transit",
+        current: "In transit", next: "Arrived at Ship-to", eta: "26 Aug, 14:20 WIB", varianceMin: 12, source: "Observed", sourceDetail: "GPS position received from MileApp",
+        freshness: "6 min ago", feed: "MileApp GPS", exception: "None", exceptionLevel: "none", progress: 74, distance: "158 of 213 km",
+        currentPlace: "National road, south-east of Bandung, en route to Garut Hub", originTime: "Departed 26 Aug, 09:10 WIB", destinationTime: "Expected 26 Aug, 14:20 WIB",
+        coords: { origin: [-6.3079,107.1721], current: [-6.9640,107.6625], destination: [-7.2274,107.9082] },
+        travelled: [[-6.3079,107.1721],[-6.55,107.3],[-6.75,107.45],[-6.9175,107.6191],[-6.9640,107.6625]], remaining: [[-6.9640,107.6625],[-7.05,107.75],[-7.15,107.83],[-7.2274,107.9082]],
+        tripJourney: [{ trip: "TR-9304", route: "Cikarang MDC → Bandung DC → Garut Hub", status: "Current", vehicle: "D 8821 TNK" }]
+      },
+      {
+        order: "SO-260826-2301", trip: "TR-9304", vehicle: "D 8821 TNK", vehicleType: "Fuso Box", carrier: "PT Lintas Nusantara", mapMode: "Truck",
+        customer: "Bandung DC", channel: "GT", origin: "Cikarang MDC", destination: "Bandung DC", route: "Cikarang MDC → Bandung DC", stage: "At Destination",
+        current: "POD Completed", next: "POD Completed", eta: "Arrived 26 Aug, 11:35 WIB", varianceMin: -20, source: "Observed", sourceDetail: "POD captured via MileApp",
+        freshness: "Delivered 42 min ago", feed: "MileApp POD capture", exception: "None", exceptionLevel: "none", progress: 100, distance: "148 of 148 km",
+        currentPlace: "Bandung DC", originTime: "Departed 26 Aug, 09:10 WIB", destinationTime: "Arrived 26 Aug, 11:35 WIB",
+        coords: { origin: [-6.3079,107.1721], current: [-6.9175,107.6191], destination: [-6.9175,107.6191] },
+        travelled: [[-6.3079,107.1721],[-6.55,107.3],[-6.75,107.45],[-6.9175,107.6191]], remaining: [[-6.9175,107.6191]],
+        deliveredEnRoute: true,
+        tripJourney: [{ trip: "TR-9304", route: "Cikarang MDC → Bandung DC", status: "Completed", vehicle: "D 8821 TNK" }]
+      }
+    ];
+    orders.push(...multiLegCases);
+
     function buildTrips() {
       const grouped = new Map();
       orders.forEach(order => {
@@ -1133,7 +1272,32 @@
       "Ex-Warehouse", "In transit", "Arrived at Ship-to", "POD Completed"
     ];
 
-    const state = { perspective: "trips", stage: "All", source: "All", exception: "All", query: "", metric: "all", view: "journey" };
+    /* SPVB is a customer-facing role (explicit user requirement, 2026-08-27).
+       It sees only the six customer-visible milestones confirmed with YCH in
+       decision D84 (KB/CT_C_Transport_Control_Tower_Working_File.md, C21),
+       out of that decision's full thirteen-milestone sequence. The other
+       seven are internal floor states with no customer-visible counterpart,
+       so `spvbMilestoneMap` collapses each of this mockup's internal
+       `current` values down to the last customer-visible milestone it has
+       actually passed, rather than hiding it outright. */
+    const spvbJourneyMilestones = ["Order received", "Pick completed", "Ex-warehouse", "In transit", "Arrived at ship-to", "POD completed"];
+    const spvbMilestoneMap = {
+      "route planned": "Order received",
+      "truck confirmed": "Order received",
+      "truck checked in": "Order received",
+      "pick completed": "Pick completed",
+      "truck docked in": "Pick completed",
+      "truck docked out": "Pick completed",
+      "ex-warehouse": "Ex-warehouse",
+      "in transit": "In transit",
+      "arrived at ship-to": "Arrived at ship-to",
+      "pod completed": "POD completed",
+      "return order received": "POD completed",
+      "return intake pending": "POD completed"
+    };
+    function toSpvbMilestone(current) { return spvbMilestoneMap[String(current).toLowerCase()] || current; }
+
+    const state = { perspective: "trips", role: "coordinator", stage: "All", source: "All", exception: "All", query: "", metric: "all", view: "journey" };
     let detailMap;
     let detailLayers = [];
     let networkMap;
@@ -1149,7 +1313,7 @@
     const els = {
       body: document.getElementById("orders-body"), search: document.getElementById("table-search"), globalSearch: document.getElementById("global-search"),
       source: document.getElementById("source-filter"), exception: document.getElementById("exception-filter"),
-      resultCount: document.getElementById("result-count"), empty: document.getElementById("empty-state"), journey: document.getElementById("journey-view"),
+      empty: document.getElementById("empty-state"), journey: document.getElementById("journey-view"),
       network: document.getElementById("network-view"), drawer: document.getElementById("detail-drawer"), backdrop: document.getElementById("drawer-backdrop")
     };
 
@@ -1255,7 +1419,7 @@
           <td><span class="order-link">${escapeHtml(entity.order)}</span></td>
           <td><span class="linked-entity">${escapeHtml(entity.trip)}</span>${entity.tripJourney.length > 1 ? `<span class="subtext">${entity.tripJourney.length} linked trips</span>` : ""}</td>
           <td><strong>${escapeHtml(entity.destination)}</strong><span class="channel-badge">${escapeHtml(entity.channel)}</span></td>
-          <td>${escapeHtml(entity.route)}</td>
+          <td>${escapeHtml(entity.route)}${entity.legDestination ? `<span class="subtext">Current trip ends at ${escapeHtml(entity.legDestination)}, then continues to ${escapeHtml(entity.destination)}</span>` : entity.deliveredEnRoute ? `<span class="subtext">Delivered at an earlier stop; the trip continues</span>` : ""}</td>
           <td>${etaCell(entity)}</td>
           <td><span class="badge ${sourceClass(entity.source)}">${escapeHtml(entity.source)}</span><span class="subtext">Inherited from ${escapeHtml(entity.trip)}</span></td>
           <td class="exception-cell">${entity.exception === "None" ? '<span class="none">None</span>' : `<span class="badge ${entity.exceptionLevel}">${escapeHtml(entity.exception)}</span>`}</td>
@@ -1270,7 +1434,6 @@
           <td class="exception-cell">${entity.exceptionCount === 0 ? '<span class="none">None</span>' : `<span class="badge ${entity.exceptionLevel}">${escapeHtml(entity.exception)}</span>${entity.exceptionCount > 1 ? `<span class="subtext">+${entity.exceptionCount - 1} more exception${entity.exceptionCount === 2 ? "" : "s"}</span>` : ""}`}</td>
         </tr>`).join("");
       const total = isOrders ? liveOrders.length : liveTrips.length;
-      els.resultCount.textContent = `Showing ${filtered.length} of ${total} active ${isOrders ? "orders" : "trips"}`;
       els.empty.classList.toggle("visible", filtered.length === 0);
       bindRows();
       if (state.view === "network") renderNetwork(filtered);
@@ -1397,6 +1560,20 @@
       renderTable();
     }
 
+    function setRole(role) {
+      state.role = role;
+      const isSpvb = role === "spvb";
+      document.getElementById("role-coordinator-button").classList.toggle("active", !isSpvb);
+      document.getElementById("role-spvb-button").classList.toggle("active", isSpvb);
+      document.getElementById("role-coordinator-button").setAttribute("aria-pressed", String(!isSpvb));
+      document.getElementById("role-spvb-button").setAttribute("aria-pressed", String(isSpvb));
+      // SPVB is a customer-facing role: Orders only, no Trips perspective,
+      // and its Journey card uses spvbJourneyMilestones (see renderOrderJourney).
+      document.querySelector(".perspective-switch").style.display = isSpvb ? "none" : "";
+      if (els.drawer.classList.contains("open")) closeDrawer();
+      if (isSpvb) setPerspective("orders");
+    }
+
     function setView(view) {
       state.view = view;
       const isJourney = view === "journey";
@@ -1424,9 +1601,11 @@
 
     function networkIcon(entity, selected) {
       const alert = entity.exception === "None" ? "" : '<span class="fleet-alert"></span>';
-      const symbol = entity.mapMode === "Ship" ? "directions_boat" : "local_shipping";
-      const html = `<div class="fleet-marker ${entity.mapMode.toLowerCase()} ${selected ? "selected" : ""}"><span class="material-symbols-rounded" aria-hidden="true">${symbol}</span>${alert}</div>`;
-      return L.divIcon({ className: "", html, iconSize: [34, 34], iconAnchor: [17, 17], tooltipAnchor: [0, -18] });
+      const truckIcon = `<svg class="fleet-marker-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h10v9h-10z"/><path d="M13.5 10h4l3 3.5v2h-7z"/><path d="M17.5 10v3.5h3"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17.5" cy="17.5" r="1.8"/><path d="M8.8 17.5h6.9"/></svg>`;
+      const shipIcon = `<svg class="fleet-marker-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11h14l-2.2 7H7.2z"/><path d="M8 11V7h8v4"/><path d="M10 7V4h4v3"/><path d="M3.5 20c1.2.8 2.4.8 3.6 0 1.2.8 2.4.8 3.6 0 1.2.8 2.4.8 3.6 0 1.2.8 2.4.8 3.6 0"/></svg>`;
+      const symbol = entity.mapMode === "Ship" ? shipIcon : truckIcon;
+      const html = `<div class="fleet-marker ${entity.mapMode.toLowerCase()} ${selected ? "selected" : ""}">${symbol}${alert}</div>`;
+      return L.divIcon({ className: "", html, iconSize: [36, 36], iconAnchor: [18, 18], tooltipAnchor: [0, -20] });
     }
 
     function pointsMatch(first, second) {
@@ -1448,27 +1627,87 @@
     async function resolveRoute(entity) {
       const key = entityKey(entity);
       if (routeCache.has(key)) return routeCache.get(key);
+
       try {
-        let route;
+        let travelled;
+
         if (entity.mapMode === "Ship") {
           const port = [-6.1044, 106.8867];
           const roadToPort = await fetchRoadSegment(entity.coords.origin, port);
-          const seaTravelled = [port, [-5.95,107.35], [-5.75,108.35], [-5.58,109.45], [-5.45,110.55], [-5.48,111.55], entity.coords.current];
-          const seaRemaining = [entity.coords.current, [-5.50,113.55], [-5.40,114.70], [-5.28,115.85], [-5.12,116.95], [-5.02,118.05], [-5.08,118.95], entity.coords.destination];
-          route = { travelled: [...roadToPort, ...seaTravelled.slice(1)], remaining: seaRemaining };
+          const seaTravelled = [
+            port,
+            [-5.95, 107.35],
+            [-5.75, 108.35],
+            [-5.58, 109.45],
+            [-5.45, 110.55],
+            [-5.48, 111.55],
+            entity.coords.current
+          ];
+          travelled = [...roadToPort, ...seaTravelled.slice(1)];
         } else {
-          const [travelled, remaining] = await Promise.all([
-            fetchRoadSegment(entity.coords.origin, entity.coords.current),
-            fetchRoadSegment(entity.coords.current, entity.coords.destination)
-          ]);
-          route = { travelled, remaining };
+          travelled = await fetchRoadSegment(
+            entity.coords.origin,
+            entity.coords.current
+          );
         }
+
+        const route = {
+          travelled,
+          // Direction only. This is not presented as a planned road route.
+          remaining: [
+            entity.coords.current,
+            entity.coords.destination
+          ]
+        };
+
         routeCache.set(key, route);
         return route;
       } catch (error) {
-        return { travelled: entity.travelled, remaining: entity.remaining };
+        return {
+          travelled: entity.travelled,
+          remaining: [
+            entity.coords.current,
+            entity.coords.destination
+          ]
+        };
       }
     }
+
+    function routeDisplaySegments(entity, route) {
+      const hasEstimatedGap =
+        entity.source === "Computed" &&
+        entity.stage === "In Transit" &&
+        route.travelled.length > 1;
+
+      if (!hasEstimatedGap) {
+        return {
+          observed: route.travelled,
+          estimated: [],
+          lastObserved: entity.coords.current,
+          hasEstimatedGap: false
+        };
+      }
+
+      /*
+        Mockup approximation only. Production must split the route using the
+        actual last-observed GPS coordinate and timestamp.
+      */
+      const lastObservedIndex = Math.max(
+        0,
+        Math.min(
+          route.travelled.length - 2,
+          Math.floor((route.travelled.length - 1) * 0.75)
+        )
+      );
+
+      return {
+        observed: route.travelled.slice(0, lastObservedIndex + 1),
+        estimated: route.travelled.slice(lastObservedIndex),
+        lastObserved: route.travelled[lastObservedIndex],
+        hasEstimatedGap: true
+      };
+    }
+
 
     function ensureDetailMap() {
       if (!window.L) {
@@ -1485,20 +1724,113 @@
 
     async function renderDetailMap(entity) {
       if (!ensureDetailMap()) return;
+
       const route = await resolveRoute(entity);
       if (!activeMapEntity || entityKey(activeMapEntity) !== entityKey(entity)) return;
+
+      const display = routeDisplaySegments(entity, route);
       const fullRoute = [...route.travelled, ...route.remaining.slice(1)];
-      addDetailLayer(L.polyline(fullRoute, { color: "#ffffff", weight: 10, opacity: .92, className: "route-casing" }));
-      addDetailLayer(L.polyline(route.travelled, { color: "#15803d", weight: 6, opacity: .96, className: "route-base" }));
-      addDetailLayer(L.polyline(route.remaining, { color: "#ef9d17", weight: 6, opacity: .96, className: "route-base" }));
-      addDetailLayer(L.marker(entity.coords.origin, { icon: markerIcon("origin", "O") }).bindPopup(`<strong>${escapeHtml(entity.origin)}</strong><br>Origin`));
-      addDetailLayer(L.marker(entity.coords.current, { icon: markerIcon("current", "●") }).bindPopup(`<strong>${escapeHtml(entity.currentPlace)}</strong><br>${escapeHtml(entity.source)} position`));
-      addDetailLayer(L.marker(entity.coords.destination, { icon: markerIcon("destination", "D") }).bindPopup(`<strong>${escapeHtml(entity.destination)}</strong><br>Destination`));
+
+      addDetailLayer(L.polyline(route.travelled, {
+        color: "#ffffff",
+        weight: 8,
+        opacity: .92,
+        className: "route-casing"
+      }));
+
+      addDetailLayer(L.polyline(route.remaining, {
+        color: "#ffffff",
+        weight: 8,
+        opacity: .92,
+        dashArray: "16 10",
+        className: "route-casing"
+      }));
+
+      if (display.observed.length > 1) {
+        addDetailLayer(L.polyline(display.observed, {
+          color: "#15803d",
+          weight: 4,
+          opacity: .96,
+          className: "route-base"
+        }));
+      }
+
+      if (display.estimated.length > 1) {
+        addDetailLayer(L.polyline(display.estimated, {
+          color: "#ef9d17",
+          weight: 4,
+          opacity: .95,
+          dashArray: "7 6",
+          className: "route-base"
+        }));
+      }
+
+      addDetailLayer(L.polyline(route.remaining, {
+        color: "#24333f",
+        weight: 4,
+        opacity: .82,
+        dashArray: "16 10",
+        className: "route-base"
+      }));
+
+      addDetailLayer(
+        L.marker(entity.coords.origin, {
+          icon: markerIcon("origin", "O")
+        }).bindPopup(`<strong>${escapeHtml(entity.origin)}</strong><br>Origin`)
+      );
+
+      if (display.hasEstimatedGap) {
+        addDetailLayer(
+          L.marker(display.lastObserved, {
+            icon: markerIcon("last-observed", "L")
+          }).bindPopup(
+            `<strong>Last observed GPS</strong><br>${escapeHtml(entity.freshness)}`
+          )
+        );
+
+        addDetailLayer(L.circleMarker(entity.coords.current, {
+          radius: 18,
+          color: "#ef9d17",
+          weight: 1,
+          fillColor: "#ef9d17",
+          fillOpacity: .08
+        }));
+
+        addDetailLayer(
+          L.marker(entity.coords.current, {
+            icon: markerIcon("computed", "C")
+          }).bindPopup(
+            `<strong>${escapeHtml(entity.currentPlace)}</strong><br>Computed position`
+          )
+        );
+      } else {
+        addDetailLayer(
+          L.marker(entity.coords.current, {
+            icon: markerIcon("current", "●")
+          }).bindPopup(
+            `<strong>${escapeHtml(entity.currentPlace)}</strong><br>${escapeHtml(entity.source)} position`
+          )
+        );
+      }
+
+      addDetailLayer(
+        L.marker(entity.coords.destination, {
+          icon: markerIcon("destination", "D")
+        }).bindPopup(
+          `<strong>${escapeHtml(entity.destination)}</strong><br>Destination`
+        )
+      );
+
       const bounds = L.latLngBounds(fullRoute);
       detailMap.fitBounds(bounds, { padding: [38, 38], maxZoom: 10 });
+
       window.setTimeout(() => {
         detailMap.invalidateSize();
-        detailMap.fitBounds(bounds, { padding: [38, 38], maxZoom: 10, animate: false });
+        detailMap.fitBounds(bounds, {
+          padding: [38, 38],
+          maxZoom: 10,
+          animate: false
+        });
       }, 280);
     }
 
@@ -1509,12 +1841,94 @@
     }
 
     function drawSelectedNetworkRoute(entity, route) {
+      const display = routeDisplaySegments(entity, route);
       const fullRoute = [...route.travelled, ...route.remaining.slice(1)];
-      addNetworkLayer(L.polyline(fullRoute, { color: "#ffffff", weight: 10, opacity: .94, className: "route-casing", interactive: false }));
-      addNetworkLayer(L.polyline(route.travelled, { color: "#15803d", weight: 6, opacity: .97, className: "route-base", interactive: false }));
-      addNetworkLayer(L.polyline(route.remaining, { color: "#ef9d17", weight: 6, opacity: .97, className: "route-base", interactive: false }));
-      addNetworkLayer(L.circleMarker(entity.coords.origin, { radius: 5, color: "#ffffff", weight: 2, fillColor: "#24333f", fillOpacity: 1, interactive: false }));
-      addNetworkLayer(L.circleMarker(entity.coords.destination, { radius: 5, color: "#ffffff", weight: 2, fillColor: "#ef9d17", fillOpacity: 1, interactive: false }));
+
+      addNetworkLayer(L.polyline(route.travelled, {
+        color: "#ffffff",
+        weight: 8,
+        opacity: .94,
+        className: "route-casing",
+        interactive: false
+      }));
+
+      addNetworkLayer(L.polyline(route.remaining, {
+        color: "#ffffff",
+        weight: 8,
+        opacity: .94,
+        dashArray: "16 10",
+        className: "route-casing",
+        interactive: false
+      }));
+
+      if (display.observed.length > 1) {
+        addNetworkLayer(L.polyline(display.observed, {
+          color: "#15803d",
+          weight: 4,
+          opacity: .97,
+          className: "route-base",
+          interactive: false
+        }));
+      }
+
+      if (display.estimated.length > 1) {
+        addNetworkLayer(L.polyline(display.estimated, {
+          color: "#ef9d17",
+          weight: 4,
+          opacity: .95,
+          dashArray: "7 6",
+          className: "route-base",
+          interactive: false
+        }));
+      }
+
+      addNetworkLayer(L.polyline(route.remaining, {
+        color: "#24333f",
+        weight: 4,
+        opacity: .82,
+        dashArray: "16 10",
+        className: "route-base",
+        interactive: false
+      }));
+
+      addNetworkLayer(L.circleMarker(entity.coords.origin, {
+        radius: 5,
+        color: "#ffffff",
+        weight: 2,
+        fillColor: "#24333f",
+        fillOpacity: 1,
+        interactive: false
+      }));
+
+      if (display.hasEstimatedGap) {
+        addNetworkLayer(L.circleMarker(display.lastObserved, {
+          radius: 5,
+          color: "#ffffff",
+          weight: 2,
+          fillColor: "#15803d",
+          fillOpacity: 1,
+          interactive: false
+        }));
+
+        addNetworkLayer(L.circleMarker(entity.coords.current, {
+          radius: 18,
+          color: "#ef9d17",
+          weight: 1,
+          fillColor: "#ef9d17",
+          fillOpacity: .08,
+          interactive: false
+        }));
+      }
+
+      addNetworkLayer(L.circleMarker(entity.coords.destination, {
+        radius: 5,
+        color: "#ffffff",
+        weight: 2,
+        fillColor: "#ef9d17",
+        fillOpacity: 1,
+        interactive: false
+      }));
+
       return L.latLngBounds(fullRoute);
     }
 
@@ -1607,7 +2021,12 @@
     }
 
     function renderOrderJourney(order) {
-      const currentIndex = orderJourneyMilestones.findIndex(name => name.toLowerCase() === order.current.toLowerCase());
+      const isSpvb = state.role === "spvb";
+      const milestones = isSpvb ? spvbJourneyMilestones : orderJourneyMilestones;
+      const effectiveCurrent = isSpvb ? toSpvbMilestone(order.current) : order.current;
+      const currentIndex = milestones.findIndex(name => name.toLowerCase() === effectiveCurrent.toLowerCase());
+      const podIndex = milestones.length - 1;
+      const arrivedIndex = milestones.length - 2;
       const eta = etaParts(order);
       const toMinutes = time => {
         const [hours, minutes] = time.split(":").map(Number);
@@ -1617,22 +2036,30 @@
       const dateMatch = displayValue(order.eta).match(/(\d{1,2}) Aug/);
       const etaDayOffset = dateMatch ? Math.max(0, Number(dateMatch[1]) - 25) * 1440 : 0;
       let arrivalMinutes = toMinutes(eta.time) + etaDayOffset;
-      const fixedMinutes = [425, 438, 449, 456, 462, 483];
-      while (arrivalMinutes <= fixedMinutes[fixedMinutes.length - 1]) arrivalMinutes += 1440;
-      const milestoneMinutes = [...fixedMinutes, arrivalMinutes, arrivalMinutes + 30];
+      // Every pre-transit milestone before "In transit" is a synthetic
+      // placeholder time; only arrival and POD are computed from the
+      // order's own ETA. SPVB's shorter list drops the internal-only steps
+      // (Truck Docked in/out) but keeps the same anchor times for the ones
+      // it shares with the coordinator view, so the two stay comparable.
+      const preTransitMinutes = isSpvb ? [425, 438, 462, 483] : [425, 438, 449, 456, 462, 483];
+      while (arrivalMinutes <= preTransitMinutes[preTransitMinutes.length - 1]) arrivalMinutes += 1440;
+      const milestoneMinutes = [...preTransitMinutes, arrivalMinutes, arrivalMinutes + 30];
       const expectedTimes = milestoneMinutes.map(toTime);
       const actualTimes = [...expectedTimes];
-      const progressWidth = currentIndex < 0 ? 0 : currentIndex / (orderJourneyMilestones.length - 1) * 87.5;
-      const steps = orderJourneyMilestones.map((name, index) => {
+      const columnCount = milestones.length;
+      const margin = 100 / (2 * columnCount);
+      const span = 100 - 2 * margin;
+      const progressWidth = currentIndex < 0 ? 0 : currentIndex / (columnCount - 1) * span;
+      const steps = milestones.map((name, index) => {
         const done = index < currentIndex;
         const current = index === currentIndex;
-        const podIssue = index === 7 && /pod/i.test(order.exception);
-        const arrivalIssue = index === 6 && /late arrival/i.test(order.exception);
+        const podIssue = index === podIndex && /pod/i.test(order.exception);
+        const arrivalIssue = index === arrivedIndex && /late arrival/i.test(order.exception);
         const issue = !done && !current && (podIssue || arrivalIssue);
         const status = done ? "done" : current ? "current" : issue ? "issue" : "future";
         const reached = done || current;
         const time = reached ? actualTimes[index] : expectedTimes[index];
-        const day = index >= 6 ? eta.dayLabel : "today";
+        const day = index >= arrivedIndex ? eta.dayLabel : "today";
         const nodeText = done ? "✓" : current ? "•" : issue ? "!" : "";
         return `<div class="journey-step ${status}">
           <span class="journey-node">${nodeText}</span>
@@ -1646,31 +2073,18 @@
       const scaleSpan = Math.max(1, scaleEnd - scaleStart);
       const tickPositions = milestoneMinutes.map(minutes => 2 + (minutes - scaleStart) / scaleSpan * 96);
       const scaleProgressWidth = currentIndex < 0 ? 0 : Math.max(0, tickPositions[currentIndex] - 2);
-      const scaleSteps = orderJourneyMilestones.map((name, index) => {
+      const scaleSteps = milestones.map((name, index) => {
         const reached = index <= currentIndex;
-        const showLabel = index === 0 || index === currentIndex || index === orderJourneyMilestones.length - 1;
+        const showLabel = index === 0 || index === currentIndex || index === milestones.length - 1;
         return `<span class="journey-scale-tick ${reached ? "reached" : ""}" style="left:${tickPositions[index]}%" title="${escapeHtml(name)} · ${escapeHtml(expectedTimes[index])}" aria-label="${escapeHtml(name)} at ${escapeHtml(expectedTimes[index])}">${showLabel ? `<b>${escapeHtml(expectedTimes[index])}</b>` : ""}</span>`;
       }).join("");
-      document.getElementById("order-journey").innerHTML = `<div class="journey-track"><span class="journey-progress-line" style="width:${progressWidth}%"></span>${steps}</div><div class="journey-scale" aria-label="Journey time scale"><span class="journey-scale-progress" style="width:${scaleProgressWidth}%"></span>${scaleSteps}</div>`;
+      document.getElementById("order-journey").innerHTML = `<div class="journey-track" style="grid-template-columns:repeat(${columnCount}, minmax(105px, 1fr));min-width:${columnCount * 105}px;--journey-margin:${margin}%"><span class="journey-progress-line" style="width:${progressWidth}%"></span>${steps}</div><div class="journey-scale" aria-label="Journey time scale"><span class="journey-scale-progress" style="width:${scaleProgressWidth}%"></span>${scaleSteps}</div>`;
     }
 
     function setText(id, value) { document.getElementById(id).textContent = displayValue(value); }
 
-    function populateRouteDetail(entity) {
-      activeMapEntity = entity;
-      setText("progress-percent", `${entity.progress}%`);
-      document.getElementById("progress-bar").style.width = `${entity.progress}%`;
-      setText("distance-summary", entity.distance);
-      setText("origin-name", entity.origin); setText("origin-time", entity.originTime);
-      setText("current-name", entity.currentPlace); setText("current-source", `${entity.source} · ${entity.freshness}`);
-      setText("destination-name", entity.destination); setText("destination-time", entity.destinationTime);
-      setText("info-source", entity.source); setText("info-source-detail", entity.sourceDetail);
-      setText("info-freshness", entity.freshness); setText("info-feed", entity.feed);
-      const eta = etaParts(entity);
-      setText("info-eta", eta.time); setText("info-variance", `${eta.dayLabel}${eta.lateLabel ? ` · ${eta.lateLabel}` : ""}`);
-    }
-
     function showDrawer(entity, trigger) {
+      activeMapEntity = entity;
       previousFocus = trigger || document.activeElement;
       els.backdrop.classList.add("open");
       els.drawer.classList.add("open");
@@ -1682,51 +2096,29 @@
 
     function openOrderDrawer(order, trigger) {
       if (!order) return;
-      populateRouteDetail(order);
       setText("drawer-order-title", order.order);
       setText("drawer-route-title", `${order.trip} · ${order.route} · ${order.current}`);
-      setText("info-order-label", "Order"); setText("info-ship-to-label", "Customer / Ship-to"); setText("info-trip-label", "Current trip"); setText("info-current-label", "Current milestone");
-      const exceptionEl = document.getElementById("drawer-exception");
-      exceptionEl.innerHTML = order.exception === "None" ? '<strong>Current exception</strong><span>No open exception for this order.</span>' : `<strong>Current exception</strong><span>${escapeHtml(order.exception)}. Status shown for coordinator visibility.</span>`;
-      setText("info-order", order.order); setText("info-customer", "Customer fulfilment record");
-      setText("info-ship-to", order.customer); setText("info-ship-to-meta", `Delivery destination: ${order.destination} · Trade channel: ${order.channel}`);
-      setText("info-trip", order.trip); setText("info-route", `${order.tripJourney.length} trip${order.tripJourney.length === 1 ? "" : "s"} across the order journey`);
-      setText("info-current", order.current); setText("info-next", `Next: ${order.next}`);
-      setText("relationship-heading", "Linked trips");
-      setText("relationship-detail-copy", "The order-level journey stays intact when the load changes vehicle or trip.");
-      setText("relationship-detail-count", `${order.tripJourney.length} trip${order.tripJourney.length === 1 ? "" : "s"}`);
-      const relationshipList = document.getElementById("relationship-detail-list");
-      relationshipList.innerHTML = order.tripJourney.map(link => {
-        const currentTrip = trips.find(trip => trip.trip === link.trip);
-        return `<div class="relationship-item"><strong>${escapeHtml(link.trip)}</strong><span>${escapeHtml(link.route)}</span><span><span class="badge ${link.status === "Current" ? "blue" : "green"}">${escapeHtml(link.status)}</span></span>${currentTrip ? `<button type="button" data-open-trip="${escapeHtml(link.trip)}">Open trip</button>` : '<span class="none">Historical trip</span>'}</div>`;
-      }).join("");
-      relationshipList.querySelectorAll("[data-open-trip]").forEach(button => button.addEventListener("click", () => openTripDrawer(trips.find(trip => trip.trip === button.dataset.openTrip), button)));
+      document.getElementById("trip-orders-card").hidden = true;
       setText("milestone-heading", "Journey");
-      setText("milestone-copy", "Order journey. Future milestones show expected times.");
+      setText("milestone-copy", order.legDestination
+        ? `Order journey. The current trip ${order.trip} carries this order only as far as ${order.legDestination}. It reaches ${order.destination} on a further trip.`
+        : order.deliveredEnRoute
+        ? `Order journey. This order was delivered at an earlier stop on trip ${order.trip}. The trip continues on to its next stop.`
+        : "Order journey. Future milestones show expected times.");
       renderOrderJourney(order);
       showDrawer(order, trigger);
     }
 
     function openTripDrawer(trip, trigger) {
       if (!trip) return;
-      populateRouteDetail(trip);
       setText("drawer-order-title", trip.trip);
       setText("drawer-route-title", `${trip.route} · ${trip.current}`);
-      setText("info-order-label", "Trip"); setText("info-ship-to-label", "Ship-to"); setText("info-trip-label", "Orders carried"); setText("info-current-label", "Current stage");
-      const exceptionEl = document.getElementById("drawer-exception");
-      exceptionEl.innerHTML = trip.exceptionCount === 0
-        ? '<strong>Open exceptions</strong><span>No open exception is associated with this trip.</span>'
-        : `<strong>${trip.exceptionCount} open exception${trip.exceptionCount === 1 ? "" : "s"}</strong><span>${trip.exceptions.map(exception => escapeHtml(exception)).join(" · ")}</span>`;
-      setText("info-order", trip.trip); setText("info-customer", `${trip.orderCount} active order${trip.orderCount === 1 ? "" : "s"} carried`);
-      setText("info-ship-to", trip.shipTo); setText("info-ship-to-meta", `Trade channel: ${trip.channel}`);
-      setText("info-trip", trip.orderIds.slice(0, 3).join(" · ") + (trip.orderCount > 3 ? ` · +${trip.orderCount - 3}` : "")); setText("info-route", "Milestones remain at order level");
-      setText("info-current", trip.current); setText("info-next", `Next transport event: ${trip.next}`);
-      setText("relationship-heading", "Orders carried on this trip");
-      setText("relationship-detail-copy", "All carried orders on this trip share the same ship-to, milestone and exception status.");
-      setText("relationship-detail-count", `${trip.orderCount} order${trip.orderCount === 1 ? "" : "s"}`);
-      const relationshipList = document.getElementById("relationship-detail-list");
-      relationshipList.innerHTML = trip.orders.map(order => `<div class="relationship-item"><strong>${escapeHtml(order.order)}</strong><span>${escapeHtml(order.customer)}</span><span><span class="badge ${order.stage === "In Transit" ? "blue" : order.stage === "At Destination" ? "green" : "gray"}">${escapeHtml(order.current)}</span></span><button type="button" data-open-order="${escapeHtml(order.order)}">Open order</button></div>`).join("");
-      relationshipList.querySelectorAll("[data-open-order]").forEach(button => button.addEventListener("click", () => openOrderDrawer(orders.find(order => order.order === button.dataset.openOrder), button)));
+      const tripOrdersCard = document.getElementById("trip-orders-card");
+      const tripOrdersList = document.getElementById("trip-orders-list");
+      tripOrdersCard.hidden = false;
+      setText("trip-orders-count", `${trip.orderCount} order${trip.orderCount === 1 ? "" : "s"}`);
+      tripOrdersList.innerHTML = trip.orders.map(order => `<div class="relationship-item"><strong>${escapeHtml(order.order)}</strong><span>${escapeHtml(order.customer)}${order.legDestination ? `<span class="subtext">Continues past ${escapeHtml(order.legDestination)}</span>` : order.deliveredEnRoute ? `<span class="subtext">Delivered at an earlier stop</span>` : ""}</span><span><span class="badge ${order.stage === "In Transit" ? "blue" : order.stage === "At Destination" ? "green" : "gray"}">${escapeHtml(order.current)}</span></span><button type="button" data-open-order="${escapeHtml(order.order)}">Open order</button></div>`).join("");
+      tripOrdersList.querySelectorAll("[data-open-order]").forEach(button => button.addEventListener("click", () => openOrderDrawer(orders.find(order => order.order === button.dataset.openOrder), button)));
       setText("milestone-heading", "Journey");
       setText("milestone-copy", "Trip journey. Future milestones show expected times.");
       renderOrderJourney(trip);
@@ -1810,6 +2202,8 @@
     }));
     document.getElementById("orders-perspective-button").addEventListener("click", () => setPerspective("orders"));
     document.getElementById("trips-perspective-button").addEventListener("click", () => setPerspective("trips"));
+    document.getElementById("role-coordinator-button").addEventListener("click", () => setRole("coordinator"));
+    document.getElementById("role-spvb-button").addEventListener("click", () => setRole("spvb"));
     els.search.addEventListener("input", event => { state.query = event.target.value; els.globalSearch.value = event.target.value; renderTable(); });
     els.globalSearch.addEventListener("input", event => { state.query = event.target.value; els.search.value = event.target.value; renderTable(); });
     els.source.addEventListener("change", event => { state.source = event.target.value; renderTable(); });
@@ -1841,6 +2235,7 @@
     setPerspective("trips");
     const pageParameters = new URLSearchParams(window.location.search);
     if (pageParameters.get("perspective") === "orders") setPerspective("orders");
+    if (pageParameters.get("role") === "spvb") setRole("spvb");
     if (pageParameters.get("view") === "network") setView("network");
     const requestedFleetOrder = pageParameters.get("fleet");
     if (requestedFleetOrder) window.setTimeout(() => selectNetworkEntity(requestedFleetOrder), 150);
