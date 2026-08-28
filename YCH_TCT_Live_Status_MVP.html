@@ -876,6 +876,17 @@
         </div>
         <div id="trip-orders-list" class="relationship-list"></div>
       </section>
+
+      <section id="exception-history-card" class="relationship-card" aria-labelledby="exception-history-heading">
+        <div class="relationship-card-header">
+          <div>
+            <h3 id="exception-history-heading">Exception history</h3>
+            <p id="exception-history-copy">Exceptions raised, snoozed or resolved for this order.</p>
+          </div>
+          <span class="entity-count" id="exception-history-count">0 exceptions</span>
+        </div>
+        <div id="exception-history-list" class="relationship-list"></div>
+      </section>
     </div>
   </aside>
 
@@ -903,7 +914,11 @@
         currentPlace: "National Route 1, near Dong Hoi", originTime: "Departed 25 Aug, 09:00", destinationTime: "Expected 27 Aug, 08:40",
         coords: { origin: [10.884,106.593], current: [17.483,106.600], destination: [20.844,106.688] },
         travelled: [[10.884,106.593],[12.249,109.190],[13.782,109.219],[16.061,108.213],[17.483,106.600]],
-        remaining: [[17.483,106.600],[18.670,105.682],[19.807,105.777],[20.844,106.688]]
+        remaining: [[17.483,106.600],[18.670,105.682],[19.807,105.777],[20.844,106.688]],
+        exceptionHistory: [
+          { type: "Route deviation", level: "amber", status: "Resolved", raisedAt: "25 Aug, 14:20", updatedAt: "25 Aug, 16:05", note: "Driver corrected back onto National Route 1 near Phan Thiet." },
+          { type: "Late arrival predicted", level: "amber", status: "Open", raisedAt: "26 Aug, 23:40", updatedAt: "4 min ago", note: "ETA now 27 Aug, 08:40, more than 90 min after plan." }
+        ]
       },
       {
         order: "STO-260825-0721", trip: "TR-4142", vehicle: "50H-317.42", vehicleType: "Container Box 20ft", carrier: "Song Hau Trans Co Ltd", mapMode: "Truck",
@@ -921,7 +936,10 @@
         freshness: "7 min ago", feed: "Gate and dock feed", exception: "Dock waiting exceeds threshold", exceptionLevel: "amber", progress: 4, distance: "7 of 180 km",
         currentPlace: "YCH DC Thuan An", originTime: "Checked in 25 Aug, 13:31", destinationTime: "Expected 25 Aug, 19:30",
         coords: { origin: [10.925,106.713], current: [10.926,106.712], destination: [10.034,105.788] },
-        travelled: [[10.925,106.713],[10.926,106.712]], remaining: [[10.926,106.712],[10.5,106.3],[10.034,105.788]]
+        travelled: [[10.925,106.713],[10.926,106.712]], remaining: [[10.926,106.712],[10.5,106.3],[10.034,105.788]],
+        exceptionHistory: [
+          { type: "Dock waiting exceeds threshold", level: "amber", status: "Snoozed", raisedAt: "25 Aug, 13:45", updatedAt: "25 Aug, 14:10", note: "Snoozed 30 min; coordinator confirmed a dock is being freed for this truck." }
+        ]
       },
       {
         order: "SO-260825-1193", trip: "TR-4160", vehicle: "75C-198.63", vehicleType: "Container Box 20ft", carrier: "Dai Viet Logistics JSC", mapMode: "Truck",
@@ -948,7 +966,12 @@
         freshness: "GPS last seen 2h 14m ago", feed: "MileApp GPS, degraded", exception: "GPS signal lost", exceptionLevel: "red", progress: 62, distance: "267 of 430 km",
         currentPlace: "Computed near Phan Thiet", originTime: "Departed 25 Aug, 06:16", destinationTime: "Expected 26 Aug, 07:10",
         coords: { origin: [10.884,106.593], current: [11.09,108.1], destination: [12.249,109.190] },
-        travelled: [[10.884,106.593],[10.93,107.3],[11.09,108.1]], remaining: [[11.09,108.1],[11.6,108.6],[12.249,109.190]]
+        travelled: [[10.884,106.593],[10.93,107.3],[11.09,108.1]], remaining: [[11.09,108.1],[11.6,108.6],[12.249,109.190]],
+        exceptionHistory: [
+          { type: "Route deviation", level: "amber", status: "Resolved", raisedAt: "25 Aug, 07:30", updatedAt: "25 Aug, 08:05", note: "False positive; route confirmed correct once the next GPS ping landed." },
+          { type: "GPS signal lost", level: "red", status: "Snoozed", raisedAt: "25 Aug, 09:50", updatedAt: "25 Aug, 10:20", note: "Snoozed 1 h pending a driver phone callback." },
+          { type: "GPS signal lost", level: "red", status: "Open", raisedAt: "25 Aug, 11:20", updatedAt: "GPS last seen 2h 14m ago", note: "Signal did not return after the snooze window; position now computed from the last event and route plan." }
+        ]
       },
       {
         order: "SO-260825-1224", trip: "TR-4169", vehicle: "50H-643.27", vehicleType: "Refrigerated Truck", carrier: "Song Hau Trans Co Ltd", mapMode: "Truck",
@@ -2132,6 +2155,42 @@
       window.setTimeout(() => renderDetailMap(entity), 260);
     }
 
+    /* Exception history (explicit user requirement, request relayed from
+       seniors, 2026-08-28): every order and trip drawer lists exceptions
+       that were raised, snoozed or resolved, not just the current open one.
+       `exceptionHistory` on an order is the authored record; where it is
+       absent, the single current `exception` field stands in as one Open
+       entry so every order still shows something truthful. A trip's history
+       is every carried order's history, tagged with which order raised it. */
+    function exceptionHistoryFor(order) {
+      if (order.exceptionHistory) return order.exceptionHistory;
+      if (order.exception && order.exception !== "None") {
+        return [{ type: order.exception, level: order.exceptionLevel, status: "Open", raisedAt: order.freshness, updatedAt: order.freshness, note: "" }];
+      }
+      return [];
+    }
+
+    function exceptionStatusClass(entry) {
+      return entry.status === "Resolved" ? "green" : entry.status === "Snoozed" ? "gray" : entry.level;
+    }
+
+    function renderExceptionHistory(entity, isOrders) {
+      const list = document.getElementById("exception-history-list");
+      const entries = isOrders
+        ? exceptionHistoryFor(entity)
+        : entity.orders.flatMap(order => exceptionHistoryFor(order).map(entry => ({ ...entry, order: order.order })));
+      setText("exception-history-copy", isOrders ? "Exceptions raised, snoozed or resolved for this order." : "Exceptions raised, snoozed or resolved for orders on this trip.");
+      setText("exception-history-count", `${entries.length} exception${entries.length === 1 ? "" : "s"}`);
+      list.innerHTML = entries.length ? entries.map(entry => `<div class="relationship-item">
+          <strong>${escapeHtml(entry.type)}</strong>
+          <span>${entry.order ? `${escapeHtml(entry.order)} · ` : ""}Raised ${escapeHtml(entry.raisedAt)}${entry.updatedAt && entry.updatedAt !== entry.raisedAt ? ` · Updated ${escapeHtml(entry.updatedAt)}` : ""}${entry.note ? `<span class="subtext">${escapeHtml(entry.note)}</span>` : ""}</span>
+          <span><span class="badge ${exceptionStatusClass(entry)}">${escapeHtml(entry.status)}</span></span>
+          ${entry.order ? `<button type="button" data-open-order="${escapeHtml(entry.order)}">Open order</button>` : "<span></span>"}
+        </div>`).join("")
+        : `<p class="none">No exceptions recorded for this ${isOrders ? "order" : "trip"}.</p>`;
+      if (!isOrders) list.querySelectorAll("[data-open-order]").forEach(button => button.addEventListener("click", () => openOrderDrawer(orders.find(order => order.order === button.dataset.openOrder), button)));
+    }
+
     function openOrderDrawer(order, trigger) {
       if (!order) return;
       setText("drawer-order-title", order.order);
@@ -2144,6 +2203,7 @@
         ? `Order journey. This order was delivered at an earlier stop on trip ${order.trip}. The trip continues on to its next stop.`
         : "Order journey. Future milestones show expected times.");
       renderOrderJourney(order);
+      renderExceptionHistory(order, true);
       showDrawer(order, trigger);
     }
 
@@ -2160,6 +2220,7 @@
       setText("milestone-heading", "Journey");
       setText("milestone-copy", "Trip journey. Future milestones show expected times.");
       renderOrderJourney(trip);
+      renderExceptionHistory(trip, false);
       showDrawer(trip, trigger);
     }
 
