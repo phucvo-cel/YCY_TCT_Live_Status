@@ -2,7 +2,9 @@
 
 ## Purpose and Boundary
 
-The YCH Transport Control Tower supports Indonesian transport operations through:
+**Current scope (from 27 August 2026): Vietnam, shipper Suntory PepsiCo Vietnam Beverage (SPVB).** This supersedes the engagement's original scope, Indonesia, shipper referred to as FFI in earlier material. See `KB/CT_TCT_SPVB_Working_File_v7.md` for the current network, milestones, and open questions; it inherits the doctrine and decisions below by reference and is the current authority for country, shipper, and network facts. Material built for the Indonesian scope, including `YCH_TCT_Live_Status_MVP.html` as it stood before this pivot, is historical unless explicitly carried forward.
+
+The YCH Transport Control Tower supports YCH's road transport operations through:
 
 - end-to-end visibility,
 - exception handling,

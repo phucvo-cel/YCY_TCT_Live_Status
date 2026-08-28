@@ -9,7 +9,8 @@ nothing below is a copy, it is the same content relocated. Do not read the
 archive in normal work; it exists only for a full-history audit.
 
 - [CT_A_Proposal_Working_File.md](./CT_A_Proposal_Working_File.md) — Part A. Track 1, the Supply Chain Orchestration Control Tower (YCH's FMCG manufacturing customer, Indonesia and the Philippines): decisions, the worked example, slide inventory, assumptions to verify.
-- [CT_C_Transport_Control_Tower_Working_File.md](./CT_C_Transport_Control_Tower_Working_File.md) — Part C. Track 2, the Transport Control Tower for YCH's own Indonesian transport operations: engagement, architecture, delivery plan, and the dated decision record C1 to C21.
+- [CT_C_Transport_Control_Tower_Working_File.md](./CT_C_Transport_Control_Tower_Working_File.md) — Part C. Track 2, the Transport Control Tower: engagement doctrine, architecture, delivery plan, and the dated decision record C1 to C21, D1 to D88. Written for the track's original scope (YCH's own Indonesian transport operations); its country, shipper and network facts are superseded by the file below, but its decisions remain in force by reference except where that file overrides them.
+- [CT_TCT_SPVB_Working_File_v7.md](./CT_TCT_SPVB_Working_File_v7.md) — Track 2's current scope, effective 27 August 2026: Vietnam, shipper Suntory PepsiCo Vietnam Beverage (SPVB), superseding the Indonesian scope above (shipper referred to there as FFI). Forked from a parent file not held in this repository; carries the network, lanes, frozen worked example, milestone-4 activation, and its own VD1 to VD22 decision series, inheriting Part C's doctrine and D1 to D88 by reference.
 - [CT_B_Knowledge_Base.md](./CT_B_Knowledge_Base.md) — Part B. Supporting knowledge built up while stress-testing both scopes (plan mechanics, ERP and 3PL boundary, glossary, web research). No commercial figures.
 
 Each of the three files opens with its own `## Contents` list giving a line
@@ -27,6 +28,8 @@ covers two distinct engagement tracks with YCH (contact: Sardar Ahmed):
 Part B holds the supporting knowledge built up while stress-testing both
 scopes; it exists to level the team and to defend the proposals in
 discussion. Commercial figures are deliberately absent from this file.
+
+Scope change, 27 to 28 August 2026 (recorded here 28 August 2026): YCH informed CEL that Track 2's country and shipper changed, from Indonesia and the shipper referred to as FFI, to Vietnam and Suntory PepsiCo Vietnam Beverage (SPVB). This index and this version-13 file are not themselves revised for the change; `CT_TCT_SPVB_Working_File_v7.md` is the current record, forked from a parent file (`CT_TCT_Working_File_v14.md`) not held in this repository. It carries decisions VD1 to VD22 and inherits this file's doctrine, architecture and D1 to D88 by reference. Material built for the Indonesian scope, including `YCH_TCT_Live_Status_MVP.html` as it stood before this pivot, is historical unless explicitly carried forward.
 
 Change log, v12 to v13 (25 August 2026, evening): C21 added, decisions D84 to D88: the milestone sequence confirmed with YCH and superseding D44 and D70, POD completed defined as captured, the return milestone placed in Release 2, the six customer-visible milestones, and the coordinator's waiting order on the floor. The data contract moved to v2 and the mockup to v1.00 in the same pass, so the three never disagree.
 
