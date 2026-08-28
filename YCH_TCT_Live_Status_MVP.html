@@ -450,6 +450,10 @@
     .table-wrap { overflow: auto; max-height: calc(100vh - 410px); min-height: 330px; }
     table { width: 100%; border-collapse: separate; border-spacing: 0; white-space: nowrap; font-size: 12px; }
     th { position: sticky; top: 0; z-index: 2; height: 40px; padding: 0 12px; color: #6a7781; background: #f7f9fa; border-bottom: 1px solid var(--border); font-weight: 700; text-align: left; }
+    .sort-header { display: inline-flex; align-items: center; gap: 4px; border: 0; padding: 0; background: transparent; font: inherit; font-weight: 700; color: inherit; cursor: pointer; }
+    .sort-header:hover, .sort-header.active { color: var(--gunmetal); }
+    .sort-arrow { font-size: 9px; color: var(--muted-2); }
+    .sort-header.active .sort-arrow { color: var(--blue); }
     td { height: 52px; padding: 0 12px; border-bottom: 1px solid #edf0f2; color: #44535e; }
     th:first-child, td:first-child { position: sticky; left: 0; z-index: 1; background: inherit; }
     th:first-child { z-index: 3; background: #f7f9fa; }
@@ -1376,7 +1380,7 @@
     };
     function toSpvbMilestone(current) { return spvbMilestoneMap[String(current).toLowerCase()] || current; }
 
-    const state = { perspective: "trips", role: "coordinator", stage: "All", source: "All", exception: "All", query: "", metric: "all", view: "journey" };
+    const state = { perspective: "trips", role: "coordinator", stage: "All", source: "All", exception: "All", query: "", metric: "all", view: "journey", sortKey: null, sortDirection: "asc" };
     let detailMap;
     let detailLayers = [];
     let networkMap;
@@ -1454,10 +1458,6 @@
       return source === "Observed" ? "green" : source === "Computed" ? "blue" : "violet";
     }
 
-    function explanationMarker(label, explanation) {
-      return `<span class="explain-marker" tabindex="0" role="button" aria-label="${escapeHtml(label)}" aria-describedby="explanation-popover" aria-expanded="false" data-explain="${escapeHtml(explanation)}">!</span>`;
-    }
-
     function matchesJourneyStage(entity) {
       if (state.stage === "All") return true;
       if (state.perspective === "trips") {
@@ -1466,10 +1466,84 @@
       return entity.stage === state.stage;
     }
 
+    /* Sortable columns, every table (explicit user requirement, 2026-08-28).
+       Each column carries its own comparable value getter, so ETA and
+       Raised sort chronologically rather than as display text, and
+       Exception/Status sort by urgency (Open, then Snoozed, then Resolved)
+       rather than alphabetically. sortableMinutes reuses the same "DD Mon,
+       HH:MM" parsing pattern already used for ETA lateness elsewhere; a
+       string with no date or time collapses to the same fallback value
+       rather than breaking the sort. */
+    function sortableMinutes(text) {
+      const value = displayValue(text || "");
+      const dateMatch = value.match(/(\d{1,2}) Aug/);
+      const timeMatch = value.match(/([01]?\d|2[0-3]):[0-5]\d/);
+      const day = dateMatch ? Number(dateMatch[1]) : 25;
+      const [hours, minutes] = (timeMatch ? timeMatch[0] : "00:00").split(":").map(Number);
+      return day * 1440 + hours * 60 + minutes;
+    }
+
+    function exceptionSortRank(entity, isOrders) {
+      const status = latestExceptionStatus(entity, isOrders);
+      return status ? { Open: 0, Snoozed: 1, Resolved: 2 }[status] : 3;
+    }
+
+    const ORDER_COLUMNS = [
+      { key: "order", label: "Order", value: entity => entity.order },
+      { key: "trip", label: "Trip", value: entity => entity.trip },
+      { key: "shipTo", label: "Ship-to", value: entity => entity.destination },
+      { key: "route", label: "Route", value: entity => entity.route },
+      { key: "eta", label: "ETA", value: entity => sortableMinutes(entity.eta) },
+      { key: "source", label: "Position source", value: entity => entity.source },
+      { key: "exception", label: "Exception", value: entity => exceptionSortRank(entity, true) }
+    ];
+    const TRIP_COLUMNS = [
+      { key: "trip", label: "Trip", value: entity => entity.trip },
+      { key: "orders", label: "Orders carried", value: entity => entity.orderCount },
+      { key: "shipTo", label: "Ship-to", value: entity => entity.shipTo },
+      { key: "route", label: "Route", value: entity => entity.route },
+      { key: "eta", label: "ETA", value: entity => sortableMinutes(entity.eta) },
+      { key: "source", label: "Position source", value: entity => entity.source },
+      { key: "exception", label: "Exception", value: entity => exceptionSortRank(entity, false) }
+    ];
+    const EXCEPTION_COLUMNS = [
+      { key: "type", label: "Exception", value: entry => entry.type },
+      { key: "order", label: "Order", value: entry => entry.order },
+      { key: "trip", label: "Trip", value: entry => entry.trip },
+      { key: "shipTo", label: "Ship-to", value: entry => entry.shipTo },
+      { key: "status", label: "Status", value: entry => ({ Open: 0, Snoozed: 1, Resolved: 2 }[entry.status] ?? 3) },
+      { key: "raised", label: "Raised", value: entry => sortableMinutes(entry.raisedAt) }
+    ];
+
+    function applySort(list, columns) {
+      const column = state.sortKey && columns.find(candidate => candidate.key === state.sortKey);
+      if (!column) return list;
+      const dir = state.sortDirection === "desc" ? -1 : 1;
+      return [...list].sort((a, b) => {
+        const va = column.value(a);
+        const vb = column.value(b);
+        return typeof va === "number" && typeof vb === "number" ? (va - vb) * dir : String(va).localeCompare(String(vb)) * dir;
+      });
+    }
+
+    function sortableHeaderCell(column) {
+      const active = state.sortKey === column.key;
+      const arrow = active ? (state.sortDirection === "desc" ? "▼" : "▲") : "⇅";
+      return `<th scope="col"><button type="button" class="sort-header${active ? " active" : ""}" data-sort-key="${escapeHtml(column.key)}" aria-label="Sort by ${escapeHtml(column.label)}${active ? `, ${state.sortDirection === "desc" ? "descending" : "ascending"}` : ""}">${escapeHtml(column.label)}<span class="sort-arrow" aria-hidden="true">${arrow}</span></button></th>`;
+    }
+
+    function bindSortHeaders() {
+      document.querySelectorAll(".sort-header").forEach(button => button.addEventListener("click", () => {
+        state.sortDirection = state.sortKey === button.dataset.sortKey && state.sortDirection === "asc" ? "desc" : "asc";
+        state.sortKey = button.dataset.sortKey;
+        renderTable();
+      }));
+    }
+
     function filteredEntities() {
       const q = state.query.trim().toLowerCase();
       const entities = state.perspective === "orders" ? liveOrders : liveTrips;
-      return entities.filter(entity => {
+      const filtered = entities.filter(entity => {
         const text = state.perspective === "orders"
           ? [entity.order, entity.customer, entity.channel, entity.trip, entity.route, entity.current, entity.next, entity.exception].join(" ").toLowerCase()
           : [entity.trip, entity.orderIds.join(" "), entity.shipTo, entity.channel, entity.route, entity.current, entity.exception].join(" ").toLowerCase();
@@ -1486,15 +1560,15 @@
           && (state.exception === "All" || (state.exception === "None" ? !status : status === state.exception))
           && (!q || text.includes(q));
       });
+      return applySort(filtered, state.perspective === "orders" ? ORDER_COLUMNS : TRIP_COLUMNS);
     }
 
     function renderTable() {
       if (state.perspective === "exceptions") { renderExceptionsTable(); return; }
       const filtered = filteredEntities();
       const isOrders = state.perspective === "orders";
-      document.getElementById("entity-table-head").innerHTML = isOrders
-        ? `<th scope="col">Order</th><th scope="col"><span class="label-with-explanation">Trip ${explanationMarker("Explain linked trips", "The current trip executing this order. Open the order to see any other linked trips.")}</span></th><th scope="col">Ship-to</th><th scope="col">Route</th><th scope="col">ETA</th><th scope="col"><span class="label-with-explanation">Position source ${explanationMarker("Explain position source", "Observed is received from an event or GPS. Computed is estimated. Manual is entered by a coordinator.")}</span></th><th scope="col"><span class="label-with-explanation">Exception ${explanationMarker("Explain order exception", "An open deviation affecting this order and requiring visibility or action in the work queue.")}</span></th>`
-        : `<th scope="col">Trip</th><th scope="col"><span class="label-with-explanation">Orders carried ${explanationMarker("Explain orders carried", "All active orders currently linked to this physical trip record.")}</span></th><th scope="col">Ship-to</th><th scope="col">Route</th><th scope="col">ETA</th><th scope="col"><span class="label-with-explanation">Position source ${explanationMarker("Explain position source", "Observed is received from a live event or GPS. Computed is estimated. Manual is entered by a coordinator.")}</span></th><th scope="col"><span class="label-with-explanation">Exception ${explanationMarker("Explain trip exceptions", "Open exception types associated with this trip are shown once. Open the trip to see the related orders.")}</span></th>`;
+      document.getElementById("entity-table-head").innerHTML = (isOrders ? ORDER_COLUMNS : TRIP_COLUMNS).map(sortableHeaderCell).join("");
+      bindSortHeaders();
       els.body.innerHTML = filtered.map(entity => isOrders ? `
         <tr tabindex="0" data-entity="${escapeHtml(entity.order)}" aria-label="Open order ${escapeHtml(entity.order)} detail">
           <td><span class="order-link">${escapeHtml(entity.order)}</span></td>
@@ -1529,15 +1603,17 @@
        here and are hidden by setPerspective. */
     function filteredExceptionEntries() {
       const q = state.query.trim().toLowerCase();
-      return allExceptionEntries.filter(entry => {
+      const filtered = allExceptionEntries.filter(entry => {
         const text = [entry.type, entry.order, entry.trip, entry.shipTo, entry.note].join(" ").toLowerCase();
         return (state.exception === "All" || entry.status === state.exception) && (!q || text.includes(q));
       });
+      return applySort(filtered, EXCEPTION_COLUMNS);
     }
 
     function renderExceptionsTable() {
       const filtered = filteredExceptionEntries();
-      document.getElementById("entity-table-head").innerHTML = `<th scope="col">Exception</th><th scope="col">Order</th><th scope="col">Trip</th><th scope="col">Ship-to</th><th scope="col">Status</th><th scope="col">Raised</th>`;
+      document.getElementById("entity-table-head").innerHTML = EXCEPTION_COLUMNS.map(sortableHeaderCell).join("");
+      bindSortHeaders();
       els.body.innerHTML = filtered.map(entry => `
         <tr tabindex="0" data-order="${escapeHtml(entry.order)}" aria-label="Open order ${escapeHtml(entry.order)} detail">
           <td><strong>${escapeHtml(entry.type)}</strong>${entry.note ? `<span class="subtext">${escapeHtml(entry.note)}</span>` : ""}</td>
@@ -1663,6 +1739,8 @@
       state.perspective = perspective;
       state.stage = "All";
       state.metric = "all";
+      state.sortKey = null;
+      state.sortDirection = "asc";
       selectedNetworkEntityId = null;
       selectedNetworkRoute = null;
       routeRequestToken += 1;
@@ -2344,6 +2422,7 @@
 
     function clearFilters() {
       state.stage = "All"; state.source = "All"; state.exception = "All"; state.query = ""; state.metric = "all";
+      state.sortKey = null; state.sortDirection = "asc";
       els.search.value = ""; els.globalSearch.value = ""; els.source.value = "All"; els.exception.value = "All";
       setStage("All");
     }
