@@ -629,6 +629,7 @@
     .journey-step.current .journey-node { border-color: var(--amber); color: white; background: var(--amber); box-shadow: 0 0 0 4px rgba(239,157,23,.22); }
     .journey-step.issue .journey-node { border-color: var(--red); color: white; background: var(--red); box-shadow: 0 0 0 4px rgba(185,53,42,.16); }
     .journey-step.future .journey-node { border-style: dashed; }
+    .journey-node.multidrop { cursor: pointer; }
     .journey-step strong { margin-top: 7px; color: var(--gunmetal); font-size: 10px; line-height: 1.25; }
     .journey-step.future strong { color: #7c8992; }
     .journey-time { margin-top: 3px; color: #334c5c; font-size: 10px; font-variant-numeric: tabular-nums; }
@@ -1349,6 +1350,72 @@
       }
     ];
     orders.push(...multiLegCases);
+
+    /* Illustrative multi-drop trip (explicit user requirement, 2026-08-31,
+       "multi-drop delivery visualization approved" from the 28 August 2026
+       meeting): one truck, one trip, five ship-tos, matching the meeting's
+       own worked example of 5 drops with 4 arrived and 2 with POD signed.
+       This reverses LS-D002 for this one trip only ("a trip carries one
+       ship-to"): LS-D002's own source note already flagged it as
+       conflicting with the KB's multi-drop example, and there was no real
+       multi-drop trip anywhere in this data to render a fraction against.
+       Every other trip stays single-drop. TR-9401's first entry (Nhon
+       Tranh, still in transit) is listed first so buildTrips derives the
+       trip's own summary fields (current, progress, stage) from it, since
+       the truck itself is between stops, not at any single one. */
+    const multiDropCase = [
+      {
+        order: "SO-260826-2505", trip: "TR-9401", vehicle: "50H-822.30", vehicleType: "Van Truck 5T", carrier: "Truong Phat Van Tai JSC", mapMode: "Truck",
+        customer: "Nhon Trach Distributor", channel: "GT", origin: "OPMT", destination: "Nhon Trach Distributor", route: "OPMT → 5 drops (Thu Duc, Di An, Bien Hoa, Long Thanh, Nhon Trach)", stage: "In Transit",
+        current: "In transit", next: "Arrived at Ship-to", eta: "25 Aug, 16:40", varianceMin: 5, source: "Observed", sourceDetail: "GPS position received from MileApp",
+        freshness: "4 min ago", feed: "MileApp GPS", exception: "None", exceptionLevel: "none", progress: 84, distance: "83 of 98 km",
+        currentPlace: "Provincial Road 25B, between Long Thanh and Nhon Trach, drop 5 of 5", originTime: "Departed 25 Aug, 09:15", destinationTime: "Expected 25 Aug, 16:40",
+        coords: { origin: [10.925,106.713], current: [10.786,107.030], destination: [10.789,107.045] },
+        travelled: [[10.925,106.713],[10.850,106.756],[10.909,106.766],[10.957,106.816],[10.783,107.014],[10.786,107.030]], remaining: [[10.786,107.030],[10.789,107.045]],
+        tripJourney: [{ trip: "TR-9401", route: "OPMT → 5 drops", status: "Current", vehicle: "50H-822.30" }]
+      },
+      {
+        order: "SO-260826-2501", trip: "TR-9401", vehicle: "50H-822.30", vehicleType: "Van Truck 5T", carrier: "Truong Phat Van Tai JSC", mapMode: "Truck",
+        customer: "Thu Duc Distributor", channel: "GT", origin: "OPMT", destination: "Thu Duc Distributor", route: "OPMT → Thu Duc", stage: "At Destination",
+        current: "POD Completed", next: "POD Completed", eta: "Arrived 25 Aug, 10:20", varianceMin: -10, source: "Observed", sourceDetail: "POD captured via MileApp",
+        freshness: "6 h ago", feed: "MileApp POD capture", exception: "None", exceptionLevel: "none", progress: 100, distance: "12 of 12 km",
+        currentPlace: "Thu Duc Distributor, drop 1 of 5", originTime: "Departed 25 Aug, 09:15", destinationTime: "Arrived 25 Aug, 10:20",
+        coords: { origin: [10.925,106.713], current: [10.850,106.756], destination: [10.850,106.756] },
+        travelled: [[10.925,106.713],[10.850,106.756]], remaining: [[10.850,106.756]],
+        tripJourney: [{ trip: "TR-9401", route: "OPMT → 5 drops", status: "Current", vehicle: "50H-822.30" }]
+      },
+      {
+        order: "SO-260826-2502", trip: "TR-9401", vehicle: "50H-822.30", vehicleType: "Van Truck 5T", carrier: "Truong Phat Van Tai JSC", mapMode: "Truck",
+        customer: "Di An Distributor", channel: "GT", origin: "OPMT", destination: "Di An Distributor", route: "OPMT → Di An", stage: "At Destination",
+        current: "POD Completed", next: "POD Completed", eta: "Arrived 25 Aug, 11:05", varianceMin: -5, source: "Observed", sourceDetail: "POD captured via MileApp",
+        freshness: "5 h ago", feed: "MileApp POD capture", exception: "None", exceptionLevel: "none", progress: 100, distance: "8 of 8 km",
+        currentPlace: "Di An Distributor, drop 2 of 5", originTime: "Departed 25 Aug, 10:25", destinationTime: "Arrived 25 Aug, 11:05",
+        coords: { origin: [10.850,106.756], current: [10.909,106.766], destination: [10.909,106.766] },
+        travelled: [[10.850,106.756],[10.909,106.766]], remaining: [[10.909,106.766]],
+        tripJourney: [{ trip: "TR-9401", route: "OPMT → 5 drops", status: "Current", vehicle: "50H-822.30" }]
+      },
+      {
+        order: "SO-260826-2503", trip: "TR-9401", vehicle: "50H-822.30", vehicleType: "Van Truck 5T", carrier: "Truong Phat Van Tai JSC", mapMode: "Truck",
+        customer: "Bien Hoa Distributor", channel: "MT", origin: "OPMT", destination: "Bien Hoa Distributor", route: "OPMT → Bien Hoa", stage: "At Destination",
+        current: "Arrived at Ship-to", next: "POD Completed", eta: "Arrived 25 Aug, 12:40", varianceMin: 0, source: "Observed", sourceDetail: "Arrival geofence received from MileApp",
+        freshness: "3 h ago", feed: "MileApp geofence", exception: "POD not received", exceptionLevel: "amber", progress: 100, distance: "18 of 18 km",
+        currentPlace: "Bien Hoa Distributor, drop 3 of 5", originTime: "Departed 25 Aug, 11:10", destinationTime: "Arrived 25 Aug, 12:40",
+        coords: { origin: [10.909,106.766], current: [10.957,106.816], destination: [10.957,106.816] },
+        travelled: [[10.909,106.766],[10.957,106.816]], remaining: [[10.957,106.816]],
+        tripJourney: [{ trip: "TR-9401", route: "OPMT → 5 drops", status: "Current", vehicle: "50H-822.30" }]
+      },
+      {
+        order: "SO-260826-2504", trip: "TR-9401", vehicle: "50H-822.30", vehicleType: "Van Truck 5T", carrier: "Truong Phat Van Tai JSC", mapMode: "Truck",
+        customer: "Long Thanh Distributor", channel: "MT", origin: "OPMT", destination: "Long Thanh Distributor", route: "OPMT → Long Thanh", stage: "At Destination",
+        current: "Arrived at Ship-to", next: "POD Completed", eta: "Arrived 25 Aug, 14:55", varianceMin: 0, source: "Observed", sourceDetail: "Arrival geofence received from MileApp",
+        freshness: "1 h ago", feed: "MileApp geofence", exception: "POD not received", exceptionLevel: "amber", progress: 100, distance: "35 of 35 km",
+        currentPlace: "Long Thanh Distributor, drop 4 of 5", originTime: "Departed 25 Aug, 12:45", destinationTime: "Arrived 25 Aug, 14:55",
+        coords: { origin: [10.957,106.816], current: [10.783,107.014], destination: [10.783,107.014] },
+        travelled: [[10.957,106.816],[10.783,107.014]], remaining: [[10.783,107.014]],
+        tripJourney: [{ trip: "TR-9401", route: "OPMT → 5 drops", status: "Current", vehicle: "50H-822.30" }]
+      }
+    ];
+    orders.push(...multiDropCase);
 
     /* SKU lines for the trip drawer's order accordion (explicit user
        requirement, 2026-08-28): every order carries 1 to 3 illustrative line
@@ -2447,7 +2514,39 @@
       // which read as the timeline simply being wrong (2026-08-28 meeting).
       const overallProgress = Math.max(0, Math.min(100, Number(order.progress) || 0));
       const progressWidth = overallProgress / 100 * span;
+      // Multi-drop delivery visualization (explicit user requirement,
+      // 2026-08-31, approved at the 28 August 2026 meeting): a trip can
+      // carry several orders to different ship-tos (LS-D0## reversing
+      // LS-D002 for one illustrative trip, TR-9401). "Arrived at Ship-to"
+      // and "POD Completed" are the only milestones that fork per drop; a
+      // single truck's earlier steps (queue, pick, ex-warehouse, in
+      // transit) still happen once and stay a shared, ordinary status for
+      // the whole trip, driven by currentIndex as before.
+      const dropOrders = Array.isArray(order.orders) ? order.orders : null;
+      const isMultiDrop = Boolean(dropOrders && new Set(dropOrders.map(member => member.customer)).size > 1);
+      function dropsReaching(milestoneIndex) {
+        return dropOrders.filter(member => {
+          const memberCurrent = isSpvb ? toSpvbMilestone(member.current) : member.current;
+          return milestones.findIndex(name => name.toLowerCase() === memberCurrent.toLowerCase()) >= milestoneIndex;
+        });
+      }
       const steps = milestones.map((name, index) => {
+        if (isMultiDrop && (index === arrivedIndex || index === podIndex)) {
+          const reachedDrops = dropsReaching(index);
+          const pendingDrops = dropOrders.filter(member => !reachedDrops.includes(member));
+          const fraction = reachedDrops.length / dropOrders.length;
+          const status = fraction === 1 ? "done" : fraction > 0 ? "partial" : "future";
+          const fill = fraction > 0 ? `background:rgba(49,95,137,${Math.max(.22, fraction).toFixed(2)});border-color:#315f89;color:transparent;` : "";
+          const breakdown = `${name}, ${reachedDrops.length} of ${dropOrders.length} drops.`
+            + (reachedDrops.length ? ` Done: ${reachedDrops.map(member => member.customer).join(", ")}.` : "")
+            + (pendingDrops.length ? ` Not yet: ${pendingDrops.map(member => member.customer).join(", ")}.` : "");
+          return `<div class="journey-step ${status}">
+            <span class="journey-node multidrop" style="${fill}" role="button" tabindex="0" aria-expanded="false" aria-describedby="explanation-popover" data-explain="${escapeHtml(breakdown)}" title="${escapeHtml(breakdown)}">${fraction === 1 ? "✓" : ""}</span>
+            <strong>${escapeHtml(name)}</strong>
+            <span class="journey-time">${reachedDrops.length} of ${dropOrders.length}</span>
+            <span class="journey-day"></span>
+          </div>`;
+        }
         const done = index < currentIndex;
         const current = index === currentIndex;
         const podIssue = index === podIndex && /pod/i.test(order.exception);
@@ -2492,6 +2591,19 @@
         return `<span class="journey-scale-tick ${reached ? "reached" : ""}" style="left:${position}%" title="${escapeHtml(name)} · ${escapeHtml(expectedTimes[index])}" aria-label="${escapeHtml(name)} at ${escapeHtml(expectedTimes[index])}">${showLabel ? `<b>${escapeHtml(expectedTimes[index])}</b>` : ""}</span>`;
       }).join("");
       document.getElementById("order-journey").innerHTML = `<div class="journey-track" style="grid-template-columns:repeat(${columnCount}, minmax(105px, 1fr));min-width:${columnCount * 105}px;--journey-margin:${margin}%"><span class="journey-progress-line" style="width:${progressWidth}%"></span>${steps}</div><div class="journey-scale" style="min-width:${scaleWidthPx}px" aria-label="Journey time scale"><span class="journey-scale-progress" style="width:${scaleProgressWidth}%"></span>${scaleSteps}</div>`;
+      // Click for the breakdown, reusing the page's own explanation popover
+      // (showExplanation/hideExplanation) directly rather than the hidden
+      // .explain-marker system (LS-D019 turned that off site-wide); hover
+      // already works via the plain `title` attribute above.
+      document.getElementById("order-journey").querySelectorAll(".journey-node.multidrop").forEach(node => {
+        node.addEventListener("click", event => { event.stopPropagation(); showExplanation(node); });
+        node.addEventListener("keydown", event => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          if (explanationAnchor === node && node.getAttribute("aria-expanded") === "true") hideExplanation(node);
+          else showExplanation(node);
+        });
+      });
     }
 
     function setText(id, value) { document.getElementById(id).textContent = displayValue(value); }
