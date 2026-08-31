@@ -8,10 +8,9 @@
   L43-719   <style> block (all CSS)
   L721-921  <body> markup
     L723-746   topbar header, incl. the role-switch (Coordinator / Customer view)
-    L769-791   metric-grid summary section (repurposed for exception counts on
-               the Exceptions perspective, see updateExceptionMetrics)
-    L792-857   entity-list panel: perspective switch (Trips / Orders /
-               Exceptions), journey-stage chips, table and network views
+    L769-791   metric-grid summary section
+    L792-857   entity-list panel: perspective switch (Trips / Orders),
+               journey-stage chips, table and network views
                (incl. the lane-list-header search box on the Network view's
                Active trips/orders sidebar, L843-848)
     L866-919   detail drawer: Journey, prominent map, Trip order list and
@@ -21,19 +20,18 @@
                (orders array and generatedRouteTemplates, L935-1084),
                multiLegCases (STO/SO multi-leg cases plus the frozen VN-TR-2214
                worked example, L1162-1291), and buildTrips
-    L1294-1420 shared state and utilities, incl. allExceptionEntries (the
-               flattened per-exception list behind the Exceptions perspective)
+    L1294-1420 shared state and utilities
     L1489-1580 table rendering and filtering: filteredEntities/renderTable for
-               Trips and Orders, filteredExceptionEntries/renderExceptionsTable
-               and updateExceptionMetrics for the Exceptions perspective
+               Trips and Orders. There is no separate Exceptions perspective
+               or aggregation table (removed, LS-D050): a dedicated Exceptions
+               page exists outside this mockup, owned by the frontend team.
     L1774-2233 map rendering (detail and network), incl. renderNetwork
                (L2203) which also populates the lane-list sidebar
     L2234-2397 drawer open/close and journey population, incl. legDestination
                and deliveredEnRoute handling, the 9-milestone coordinator
                list vs. spvbJourneyMilestones' 6-milestone customer list, and
                exceptionHistoryFor/renderExceptionHistory (the drawer's own
-               Exception history card, distinct from the Exceptions
-               perspective's fleet-wide table above)
+               Exception history card)
     L2398-2570 remaining filters, search, and event wiring, incl. the
                table-search/global-search/lane-search three-way sync
 -->
@@ -553,6 +551,13 @@
     }
 
     .detail-drawer.open { transform: translateX(0); }
+
+    /* Sits on top of, not instead of, the Trip/Order drawer: same size and
+       slide, one z-index higher, so the drawer underneath stays exactly as
+       it was and simply reappears once this closes (LS-D051). */
+    .exception-drawer { z-index: 1002; }
+    .exception-drawer-body { flex: 1; display: grid; place-items: center; }
+    .exception-drawer-body p { color: var(--gunmetal); font-size: 28px; font-weight: 700; }
     .drawer-header { display: flex; align-items: flex-start; gap: 14px; padding: 17px 22px; border-bottom: 1px solid var(--border); background: white; }
     .drawer-title { min-width: 0; }
     .drawer-title h2 { display: flex; align-items: center; gap: 10px; }
@@ -645,6 +650,7 @@
     .relationship-item strong { color: var(--gunmetal); font-size: 12px; }
     .relationship-item span { color: var(--muted); font-size: 11px; }
     .relationship-item button { min-height: 32px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: 5px; color: var(--blue); background: white; font-size: 10px; font-weight: 700; }
+    .relationship-actions { display: flex; gap: 8px; }
 
     /* Orders carried on this trip expand in place, rather than opening the
        order's own drawer (explicit user requirement, 2026-08-28): the
@@ -785,7 +791,6 @@
               <div class="perspective-switch" role="group" aria-label="Operational perspective">
                 <button id="trips-perspective-button" class="active" type="button" aria-pressed="true">▣ Trips</button>
                 <button id="orders-perspective-button" type="button" aria-pressed="false">▤ Orders</button>
-                <button id="exceptions-perspective-button" type="button" aria-pressed="false">⚠ Exceptions</button>
               </div>
               <span class="explain-marker" tabindex="0" role="button" aria-label="Explain Orders and Trips perspectives" aria-describedby="explanation-popover" aria-expanded="false" data-explain="Orders follow customer fulfilment and milestones. Trips follow the vehicle, route and position. Use the switch to change the counting unit throughout the page.">!</span>
             </div>
@@ -951,6 +956,21 @@
     </div>
   </aside>
 
+  <!-- Placeholder only (explicit user requirement, 2026-08-28 meeting and
+       2026-08-31 instruction): exception resolution itself is owned and
+       built by the frontend team; this mockup only needs to demonstrate the
+       overlap and the way back. It stacks on top of, not instead of, the
+       open Trip or Order drawer (LS-D051), which is why it reuses
+       .detail-drawer's own slide and sizing rather than a new dialog. -->
+  <aside id="exception-drawer" class="detail-drawer exception-drawer" role="dialog" aria-modal="true" aria-label="Exception handling" aria-hidden="true">
+    <header class="drawer-header">
+      <button id="exception-drawer-back" class="close-button" type="button" aria-label="Back to the trip or order detail">‹</button>
+    </header>
+    <div class="exception-drawer-body">
+      <p>Exception Handling</p>
+    </div>
+  </aside>
+
   <div id="explanation-popover" class="explanation-popover" role="tooltip" aria-live="polite"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -969,7 +989,7 @@
     const orders = [
       {
         order: "SO-260825-1048", trip: "TR-4127", vehicle: "61C-482.17", vehicleType: "Wingbox 20ft", carrier: "Truong Phat Van Tai JSC", mapMode: "Truck",
-        customer: "Supply point Hai Phong", channel: "SP", origin: "MDC Hoc Mon", destination: "Supply point Hai Phong", route: "MDC Hoc Mon → Hai Phong", stage: "In Transit",
+        customer: "Hai Phong", channel: "SP", origin: "DOP", destination: "Hai Phong", route: "DOP → Hai Phong", stage: "In Transit",
         current: "In transit", next: "Arrived at Ship-to", eta: "27 Aug, 08:40", varianceMin: 95, source: "Observed", sourceDetail: "GPS position received from MileApp",
         freshness: "4 min ago", feed: "MileApp GPS", exception: "Late arrival predicted", exceptionLevel: "amber", progress: 66, distance: "1,208 of 1,830 km",
         currentPlace: "National Route 1, near Dong Hoi", originTime: "Departed 25 Aug, 09:00", destinationTime: "Expected 27 Aug, 08:40",
@@ -983,7 +1003,7 @@
       },
       {
         order: "STO-260825-0721", trip: "TR-4142", vehicle: "50H-317.42", vehicleType: "Container Box 20ft", carrier: "Song Hau Trans Co Ltd", mapMode: "Truck",
-        customer: "Supply point Quy Nhon", channel: "SP", origin: "MDC Hoc Mon", destination: "Supply point Quy Nhon", route: "MDC Hoc Mon → Quy Nhon", stage: "In Transit",
+        customer: "Quy Nhon", channel: "SP", origin: "DOP", destination: "Quy Nhon", route: "DOP → Quy Nhon", stage: "In Transit",
         current: "In transit", next: "Arrived at Ship-to", eta: "25 Aug, 22:15", varianceMin: 12, source: "Observed", sourceDetail: "GPS position received from MileApp",
         freshness: "2 min ago", feed: "MileApp GPS", exception: "None", exceptionLevel: "none", progress: 71, distance: "462 of 650 km",
         currentPlace: "National Route 1, south of Tuy Hoa", originTime: "Departed 25 Aug, 08:08", destinationTime: "Expected 25 Aug, 22:15",
@@ -992,10 +1012,10 @@
       },
       {
         order: "SO-260825-1116", trip: "TR-4151", vehicle: "43C-256.08", vehicleType: "Flatbed Truck", carrier: "Truong Phat Van Tai JSC", mapMode: "Truck",
-        customer: "Supply point Can Tho", channel: "MT", origin: "YCH DC Thuan An", destination: "Supply point Can Tho", route: "Thuan An → Can Tho", stage: "At Origin",
+        customer: "Can Tho", channel: "MT", origin: "OPMT", destination: "Can Tho", route: "OPMT → Can Tho", stage: "At Origin",
         current: "Truck Docked in", next: "Truck Docked out", eta: "25 Aug, 19:30", varianceMin: 34, source: "Observed", sourceDetail: "Dock event received from gate system",
         freshness: "7 min ago", feed: "Gate and dock feed", exception: "Dock waiting exceeds threshold", exceptionLevel: "amber", progress: 4, distance: "7 of 180 km",
-        currentPlace: "YCH DC Thuan An", originTime: "Checked in 25 Aug, 13:31", destinationTime: "Expected 25 Aug, 19:30",
+        currentPlace: "OPMT", originTime: "Checked in 25 Aug, 13:31", destinationTime: "Expected 25 Aug, 19:30",
         coords: { origin: [10.925,106.713], current: [10.926,106.712], destination: [10.034,105.788] },
         travelled: [[10.925,106.713],[10.926,106.712]], remaining: [[10.926,106.712],[10.5,106.3],[10.034,105.788]],
         exceptionHistory: [
@@ -1004,7 +1024,7 @@
       },
       {
         order: "SO-260825-1193", trip: "TR-4160", vehicle: "75C-198.63", vehicleType: "Container Box 20ft", carrier: "Dai Viet Logistics JSC", mapMode: "Truck",
-        customer: "HUB Da Nang", channel: "GT", origin: "MDC Hoc Mon", destination: "HUB Da Nang", route: "MDC Hoc Mon → Da Nang", stage: "Planning",
+        customer: "HUB Da Nang", channel: "GT", origin: "DOP", destination: "HUB Da Nang", route: "DOP → Da Nang", stage: "Planning",
         current: "Route planned", next: "Truck confirmed", eta: "26 Aug, 11:00", varianceMin: 0, source: "Computed", sourceDetail: "Latest planned route from MileApp",
         freshness: "18 min ago", feed: "MileApp route plan", exception: "No transporter accepts the trip", exceptionLevel: "red", progress: 0, distance: "0 of 940 km",
         currentPlace: "Position not started", originTime: "Planned departure 25 Aug, 19:00", destinationTime: "Planned 26 Aug, 11:00",
@@ -1013,16 +1033,16 @@
       },
       {
         order: "STO-260824-0644", trip: "TR-4098", vehicle: "92C-374.91", vehicleType: "Van Truck 5T", carrier: "Mekong Transport JSC", mapMode: "Truck",
-        customer: "YCH DC Thuan An", channel: "MT", origin: "Plant Dong Nai", destination: "YCH DC Thuan An", route: "Dong Nai → Thuan An", stage: "At Destination",
+        customer: "OPMT", channel: "MT", origin: "Plant Dong Nai", destination: "OPMT", route: "Dong Nai → OPMT", stage: "At Destination",
         current: "Arrived at Ship-to", next: "POD Completed", eta: "Arrived 25 Aug, 13:52", varianceMin: -18, source: "Observed", sourceDetail: "Arrival geofence received from MileApp",
         freshness: "9 min ago", feed: "MileApp geofence", exception: "POD not received", exceptionLevel: "amber", progress: 100, distance: "35 of 35 km",
-        currentPlace: "YCH DC Thuan An", originTime: "Departed 25 Aug, 10:58", destinationTime: "Arrived 25 Aug, 13:52",
+        currentPlace: "OPMT", originTime: "Departed 25 Aug, 10:58", destinationTime: "Arrived 25 Aug, 13:52",
         coords: { origin: [10.945,106.842], current: [10.925,106.713], destination: [10.925,106.713] },
         travelled: [[10.945,106.842],[10.935,106.78],[10.925,106.713]], remaining: [[10.925,106.713]]
       },
       {
         order: "SO-260824-0982", trip: "TR-4077", vehicle: "61C-529.34", vehicleType: "Wingbox 20ft", carrier: "Dai Viet Logistics JSC", mapMode: "Truck",
-        customer: "Supply point Nha Trang", channel: "SP", origin: "MDC Hoc Mon", destination: "Supply point Nha Trang", route: "MDC Hoc Mon → Nha Trang", stage: "In Transit",
+        customer: "Nha Trang", channel: "SP", origin: "DOP", destination: "Nha Trang", route: "DOP → Nha Trang", stage: "In Transit",
         current: "In transit", next: "Arrived at Ship-to", eta: "26 Aug, 07:10", varianceMin: 46, source: "Computed", sourceDetail: "Position computed from last event and route plan",
         freshness: "GPS last seen 2h 14m ago", feed: "MileApp GPS, degraded", exception: "GPS signal lost", exceptionLevel: "red", progress: 62, distance: "267 of 430 km",
         currentPlace: "Computed near Phan Thiet", originTime: "Departed 25 Aug, 06:16", destinationTime: "Expected 26 Aug, 07:10",
@@ -1036,36 +1056,36 @@
       },
       {
         order: "SO-260825-1224", trip: "TR-4169", vehicle: "50H-643.27", vehicleType: "Refrigerated Truck", carrier: "Song Hau Trans Co Ltd", mapMode: "Truck",
-        customer: "YCH DC Thuan An", channel: "MT", origin: "MDC Hoc Mon", destination: "YCH DC Thuan An", route: "Hoc Mon → Thuan An", stage: "At Origin",
+        customer: "OPMT", channel: "MT", origin: "DOP", destination: "OPMT", route: "DOP → OPMT", stage: "At Origin",
         current: "Pick completed", next: "Truck Docked in", eta: "25 Aug, 18:20", varianceMin: 8, source: "Manual", sourceDetail: "Coordinator update from warehouse confirmation",
         freshness: "Updated 22 min ago", feed: "Manual update", exception: "None", exceptionLevel: "none", progress: 2, distance: "1 of 25 km",
-        currentPlace: "MDC Hoc Mon", originTime: "Checked in 25 Aug, 12:48", destinationTime: "Expected 25 Aug, 18:20",
+        currentPlace: "DOP", originTime: "Checked in 25 Aug, 12:48", destinationTime: "Expected 25 Aug, 18:20",
         coords: { origin: [10.884,106.593], current: [10.888,106.62], destination: [10.925,106.713] },
         travelled: [[10.884,106.593],[10.888,106.62]], remaining: [[10.888,106.62],[10.925,106.713]]
       },
       {
         order: "RET-260825-0187", trip: "TR-4055-R", vehicle: "43C-812.55", vehicleType: "Container Box 20ft", carrier: "Truong Phat Van Tai JSC", mapMode: "Truck",
-        customer: "MDC Hoc Mon", channel: "SP", origin: "YCH DC Thuan An", destination: "MDC Hoc Mon", route: "Thuan An → Hoc Mon", stage: "Return",
+        customer: "DOP", channel: "SP", origin: "OPMT", destination: "DOP", route: "OPMT → DOP", stage: "Return",
         current: "Return Order Received", next: "Return intake pending", eta: "25 Aug, 20:00", varianceMin: 0, source: "Manual", sourceDetail: "Return order entered by coordinator",
         freshness: "Updated 31 min ago", feed: "Manual return record", exception: "Partial rejection return", exceptionLevel: "violet", progress: 0, distance: "0 of 25 km",
-        currentPlace: "YCH DC Thuan An", originTime: "Return order received 25 Aug, 14:01", destinationTime: "Planned 25 Aug, 20:00",
+        currentPlace: "OPMT", originTime: "Return order received 25 Aug, 14:01", destinationTime: "Planned 25 Aug, 20:00",
         coords: { origin: [10.925,106.713], current: [10.925,106.713], destination: [10.884,106.593] },
         travelled: [[10.925,106.713]], remaining: [[10.925,106.713],[10.884,106.593]]
       }
     ];
 
     const generatedRouteTemplates = [
-      { origin: "MDC Hoc Mon", destination: "YCH DC Thuan An", originCoord: [10.884,106.593], destinationCoord: [10.925,106.713], distanceKm: 25 },
-      { origin: "YCH DC Thuan An", destination: "Supply point Can Tho", originCoord: [10.925,106.713], destinationCoord: [10.034,105.788], distanceKm: 180 },
-      { origin: "MDC Hoc Mon", destination: "Supply point Nha Trang", originCoord: [10.884,106.593], destinationCoord: [12.249,109.190], distanceKm: 430 },
-      { origin: "MDC Hoc Mon", destination: "HUB Da Nang", originCoord: [10.884,106.593], destinationCoord: [16.061,108.213], distanceKm: 940 },
-      { origin: "MDC Hoc Mon", destination: "Supply point Hanoi", originCoord: [10.884,106.593], destinationCoord: [21.028,105.834], distanceKm: 1750 },
-      { origin: "MDC Hoc Mon", destination: "Supply point Bac Ninh", originCoord: [10.884,106.593], destinationCoord: [21.107,106.089], distanceKm: 1780 },
-      { origin: "MDC Hoc Mon", destination: "Supply point Hai Phong", originCoord: [10.884,106.593], destinationCoord: [20.844,106.688], distanceKm: 1830 },
-      { origin: "MDC Hoc Mon", destination: "Supply point Quy Nhon", originCoord: [10.884,106.593], destinationCoord: [13.782,109.219], distanceKm: 650 },
-      { origin: "Plant Dong Nai", destination: "YCH DC Thuan An", originCoord: [10.945,106.842], destinationCoord: [10.925,106.713], distanceKm: 35 },
-      { origin: "HUB Da Nang", destination: "Supply point Quy Nhon", originCoord: [16.061,108.213], destinationCoord: [13.782,109.219], distanceKm: 300 },
-      { origin: "HUB Da Nang", destination: "Supply point Hai Phong", originCoord: [16.061,108.213], destinationCoord: [20.844,106.688], distanceKm: 700 }
+      { origin: "DOP", destination: "OPMT", originCoord: [10.884,106.593], destinationCoord: [10.925,106.713], distanceKm: 25 },
+      { origin: "OPMT", destination: "Can Tho", originCoord: [10.925,106.713], destinationCoord: [10.034,105.788], distanceKm: 180 },
+      { origin: "DOP", destination: "Nha Trang", originCoord: [10.884,106.593], destinationCoord: [12.249,109.190], distanceKm: 430 },
+      { origin: "DOP", destination: "HUB Da Nang", originCoord: [10.884,106.593], destinationCoord: [16.061,108.213], distanceKm: 940 },
+      { origin: "DOP", destination: "Hanoi", originCoord: [10.884,106.593], destinationCoord: [21.028,105.834], distanceKm: 1750 },
+      { origin: "DOP", destination: "Bac Ninh", originCoord: [10.884,106.593], destinationCoord: [21.107,106.089], distanceKm: 1780 },
+      { origin: "DOP", destination: "Hai Phong", originCoord: [10.884,106.593], destinationCoord: [20.844,106.688], distanceKm: 1830 },
+      { origin: "DOP", destination: "Quy Nhon", originCoord: [10.884,106.593], destinationCoord: [13.782,109.219], distanceKm: 650 },
+      { origin: "Plant Dong Nai", destination: "OPMT", originCoord: [10.945,106.842], destinationCoord: [10.925,106.713], distanceKm: 35 },
+      { origin: "HUB Da Nang", destination: "Quy Nhon", originCoord: [16.061,108.213], destinationCoord: [13.782,109.219], distanceKm: 300 },
+      { origin: "HUB Da Nang", destination: "Hai Phong", originCoord: [16.061,108.213], destinationCoord: [20.844,106.688], distanceKm: 700 }
     ];
 
     const generatedCarriers = ["Truong Phat Van Tai JSC", "Song Hau Trans Co Ltd", "Dai Viet Logistics JSC", "Mekong Transport JSC", "Viet Thanh Logistics Co"];
@@ -1200,7 +1220,7 @@
        `deliveredEnRoute` marks that order and is set once it is at its own
        final destination while the trip carrying it is still moving. */
     const multiLegCases = [
-      // Case 1: MDC Hoc Mon -> HUB Da Nang -> Supply point Hai Phong. Trip
+      // Case 1: DOP -> HUB Da Nang -> Hai Phong. Trip
       // TR-9301 (A to B) has just arrived and had its POD signed at Da Nang.
       // STOb ends here, so its own milestone and the trip's milestone both
       // read POD Completed. SOc's ship-to is Hai Phong, one more leg north
@@ -1208,26 +1228,26 @@
       // carries it on.
       {
         order: "STO-260826-2101", trip: "TR-9301", vehicle: "61C-227.14", vehicleType: "Container Box 20ft", carrier: "Truong Phat Van Tai JSC", mapMode: "Truck",
-        customer: "HUB Da Nang", channel: "SP", origin: "MDC Hoc Mon", destination: "HUB Da Nang", route: "MDC Hoc Mon → Da Nang", stage: "At Destination",
+        customer: "HUB Da Nang", channel: "SP", origin: "DOP", destination: "HUB Da Nang", route: "DOP → Da Nang", stage: "At Destination",
         current: "POD Completed", next: "POD Completed", eta: "Arrived 26 Aug, 14:20", varianceMin: -10, source: "Observed", sourceDetail: "POD captured via MileApp",
         freshness: "3 min ago", feed: "MileApp POD capture", exception: "None", exceptionLevel: "none", progress: 100, distance: "940 of 940 km",
         currentPlace: "HUB Da Nang", originTime: "Departed 25 Aug, 16:00", destinationTime: "Arrived 26 Aug, 14:20",
         coords: { origin: [10.884,106.593], current: [16.061,108.213], destination: [16.061,108.213] },
         travelled: [[10.884,106.593],[12.249,109.190],[13.782,109.219],[16.061,108.213]], remaining: [[16.061,108.213]],
-        tripJourney: [{ trip: "TR-9301", route: "MDC Hoc Mon → Da Nang", status: "Current", vehicle: "61C-227.14" }]
+        tripJourney: [{ trip: "TR-9301", route: "DOP → Da Nang", status: "Current", vehicle: "61C-227.14" }]
       },
       {
         order: "SO-260826-2102", trip: "TR-9301", vehicle: "61C-227.14", vehicleType: "Container Box 20ft", carrier: "Truong Phat Van Tai JSC", mapMode: "Truck",
-        customer: "Supply point Hai Phong", channel: "SP", origin: "MDC Hoc Mon", destination: "Supply point Hai Phong", route: "MDC Hoc Mon → Da Nang → Hai Phong", stage: "In Transit",
+        customer: "Hai Phong", channel: "SP", origin: "DOP", destination: "Hai Phong", route: "DOP → Da Nang → Hai Phong", stage: "In Transit",
         current: "In transit", next: "Arrived at Ship-to", eta: "27 Aug, 08:00", varianceMin: 0, source: "Observed", sourceDetail: "GPS position received from MileApp for the current trip leg",
         freshness: "3 min ago", feed: "MileApp GPS", exception: "None", exceptionLevel: "none", progress: 57, distance: "940 of 1,640 km",
         currentPlace: "HUB Da Nang, awaiting the next trip leg to Hai Phong", originTime: "Departed 25 Aug, 16:00", destinationTime: "Expected 27 Aug, 08:00",
         coords: { origin: [10.884,106.593], current: [16.061,108.213], destination: [20.844,106.688] },
         travelled: [[10.884,106.593],[12.249,109.190],[13.782,109.219],[16.061,108.213]], remaining: [[16.061,108.213],[18.670,105.682],[20.844,106.688]],
         legDestination: "HUB Da Nang",
-        tripJourney: [{ trip: "TR-9301", route: "MDC Hoc Mon → Da Nang", status: "Current", vehicle: "61C-227.14" }]
+        tripJourney: [{ trip: "TR-9301", route: "DOP → Da Nang", status: "Current", vehicle: "61C-227.14" }]
       },
-      // Case 2: MDC Hoc Mon -> Supply point Hanoi -> Dong Anh Distributor.
+      // Case 2: DOP -> Hanoi -> Dong Anh Distributor.
       // Trip TR-9302 (A to B) is still moving and has not reached Hanoi yet,
       // so SOb (ending at Hanoi) and STOc (continuing to the last-mile
       // customer at Dong Anh) still share one milestone. They only diverge
@@ -1235,26 +1255,26 @@
       // already has.
       {
         order: "SO-260826-2151", trip: "TR-9302", vehicle: "50H-483.71", vehicleType: "Wingbox 20ft", carrier: "Viet Thanh Logistics Co", mapMode: "Truck",
-        customer: "Supply point Hanoi", channel: "GT", origin: "MDC Hoc Mon", destination: "Supply point Hanoi", route: "MDC Hoc Mon → Hanoi", stage: "In Transit",
+        customer: "Hanoi", channel: "GT", origin: "DOP", destination: "Hanoi", route: "DOP → Hanoi", stage: "In Transit",
         current: "In transit", next: "Arrived at Ship-to", eta: "27 Aug, 02:00", varianceMin: 18, source: "Observed", sourceDetail: "GPS position received from MileApp",
         freshness: "5 min ago", feed: "MileApp GPS", exception: "None", exceptionLevel: "none", progress: 64, distance: "1,120 of 1,750 km",
         currentPlace: "National Route 1, near Vinh", originTime: "Departed 25 Aug, 20:00", destinationTime: "Expected 27 Aug, 02:00",
         coords: { origin: [10.884,106.593], current: [18.670,105.682], destination: [21.028,105.834] },
         travelled: [[10.884,106.593],[13.782,109.219],[16.061,108.213],[18.670,105.682]], remaining: [[18.670,105.682],[19.807,105.777],[21.028,105.834]],
-        tripJourney: [{ trip: "TR-9302", route: "MDC Hoc Mon → Hanoi", status: "Current", vehicle: "50H-483.71" }]
+        tripJourney: [{ trip: "TR-9302", route: "DOP → Hanoi", status: "Current", vehicle: "50H-483.71" }]
       },
       {
         order: "STO-260826-2152", trip: "TR-9302", vehicle: "50H-483.71", vehicleType: "Wingbox 20ft", carrier: "Viet Thanh Logistics Co", mapMode: "Truck",
-        customer: "Dong Anh Distributor", channel: "GT", origin: "MDC Hoc Mon", destination: "Dong Anh Distributor", route: "MDC Hoc Mon → Hanoi → Dong Anh Distributor", stage: "In Transit",
+        customer: "Dong Anh Distributor", channel: "GT", origin: "DOP", destination: "Dong Anh Distributor", route: "DOP → Hanoi → Dong Anh Distributor", stage: "In Transit",
         current: "In transit", next: "Arrived at Ship-to", eta: "27 Aug, 03:15", varianceMin: 0, source: "Observed", sourceDetail: "GPS position received from MileApp for the current trip leg",
         freshness: "5 min ago", feed: "MileApp GPS", exception: "None", exceptionLevel: "none", progress: 63, distance: "1,120 of 1,770 km",
         currentPlace: "National Route 1, near Vinh", originTime: "Departed 25 Aug, 20:00", destinationTime: "Expected 27 Aug, 03:15",
         coords: { origin: [10.884,106.593], current: [18.670,105.682], destination: [21.15,105.85] },
         travelled: [[10.884,106.593],[13.782,109.219],[16.061,108.213],[18.670,105.682]], remaining: [[18.670,105.682],[19.807,105.777],[21.028,105.834],[21.15,105.85]],
-        legDestination: "Supply point Hanoi",
-        tripJourney: [{ trip: "TR-9302", route: "MDC Hoc Mon → Hanoi", status: "Current", vehicle: "50H-483.71" }]
+        legDestination: "Hanoi",
+        tripJourney: [{ trip: "TR-9302", route: "DOP → Hanoi", status: "Current", vehicle: "50H-483.71" }]
       },
-      // Case 3: MDC Hoc Mon -> HUB Da Nang -> Supply point Quy Nhon -> An
+      // Case 3: DOP -> HUB Da Nang -> Quy Nhon -> An
       // Nhon Distributor. Trip TR-9270 (A to B) already completed earlier.
       // Trip TR-9303 (B to C) has just arrived and had its POD signed at Quy
       // Nhon, the hub's southbound spoke. STOc ends here, so it reads POD
@@ -1263,69 +1283,69 @@
       // still carries its full two-trip history.
       {
         order: "STO-260826-2201", trip: "TR-9303", vehicle: "43C-905.62", vehicleType: "Container Box 20ft", carrier: "Dai Viet Logistics JSC", mapMode: "Truck",
-        customer: "Supply point Quy Nhon", channel: "MT", origin: "HUB Da Nang", destination: "Supply point Quy Nhon", route: "HUB Da Nang → Quy Nhon", stage: "At Destination",
+        customer: "Quy Nhon", channel: "MT", origin: "HUB Da Nang", destination: "Quy Nhon", route: "HUB Da Nang → Quy Nhon", stage: "At Destination",
         current: "POD Completed", next: "POD Completed", eta: "Arrived 26 Aug, 19:40", varianceMin: -15, source: "Observed", sourceDetail: "POD captured via MileApp",
         freshness: "4 min ago", feed: "MileApp POD capture", exception: "None", exceptionLevel: "none", progress: 100, distance: "300 of 300 km",
-        currentPlace: "Supply point Quy Nhon", originTime: "Departed 26 Aug, 15:10", destinationTime: "Arrived 26 Aug, 19:40",
+        currentPlace: "Quy Nhon", originTime: "Departed 26 Aug, 15:10", destinationTime: "Arrived 26 Aug, 19:40",
         coords: { origin: [16.061,108.213], current: [13.782,109.219], destination: [13.782,109.219] },
         travelled: [[16.061,108.213],[14.9,108.9],[13.782,109.219]], remaining: [[13.782,109.219]],
         tripJourney: [{ trip: "TR-9303", route: "HUB Da Nang → Quy Nhon", status: "Current", vehicle: "43C-905.62" }]
       },
       {
         order: "SO-260826-2202", trip: "TR-9303", vehicle: "43C-905.62", vehicleType: "Container Box 20ft", carrier: "Dai Viet Logistics JSC", mapMode: "Truck",
-        customer: "An Nhon Distributor", channel: "MT", origin: "MDC Hoc Mon", destination: "An Nhon Distributor", route: "MDC Hoc Mon → Da Nang → Quy Nhon → An Nhon Distributor", stage: "In Transit",
+        customer: "An Nhon Distributor", channel: "MT", origin: "DOP", destination: "An Nhon Distributor", route: "DOP → Da Nang → Quy Nhon → An Nhon Distributor", stage: "In Transit",
         current: "In transit", next: "Arrived at Ship-to", eta: "26 Aug, 21:30", varianceMin: 0, source: "Observed", sourceDetail: "GPS position received from MileApp for the current trip leg",
         freshness: "4 min ago", feed: "MileApp GPS", exception: "None", exceptionLevel: "none", progress: 98, distance: "1,240 of 1,270 km",
-        currentPlace: "Supply point Quy Nhon, awaiting the next trip leg to An Nhon Distributor", originTime: "Departed 25 Aug, 16:00", destinationTime: "Expected 26 Aug, 21:30",
+        currentPlace: "Quy Nhon, awaiting the next trip leg to An Nhon Distributor", originTime: "Departed 25 Aug, 16:00", destinationTime: "Expected 26 Aug, 21:30",
         coords: { origin: [10.884,106.593], current: [13.782,109.219], destination: [13.90,109.10] },
         travelled: [[10.884,106.593],[16.061,108.213],[13.782,109.219]], remaining: [[13.782,109.219],[13.90,109.10]],
-        legDestination: "Supply point Quy Nhon",
+        legDestination: "Quy Nhon",
         tripJourney: [
-          { trip: "TR-9270", route: "MDC Hoc Mon → Da Nang", status: "Completed", vehicle: "Previous vehicle" },
+          { trip: "TR-9270", route: "DOP → Da Nang", status: "Completed", vehicle: "Previous vehicle" },
           { trip: "TR-9303", route: "HUB Da Nang → Quy Nhon", status: "Current", vehicle: "43C-905.62" }
         ]
       },
-      // Case 4: MDC Hoc Mon -> YCH DC Thuan An -> Supply point Can Tho, one
-      // truck, one trip, two physical stops. SOe (ending at Thuan An, the
+      // Case 4: DOP -> OPMT -> Can Tho, one
+      // truck, one trip, two physical stops. SOe (ending at OPMT, the
       // first stop) was already delivered and its POD signed while the same
       // trip is still on the road to Can Tho with STOf. SOe's own milestone
       // therefore reads POD Completed ahead of the trip, which itself only
       // finishes once it reaches its second stop.
       {
         order: "STO-260826-2302", trip: "TR-9304", vehicle: "50H-661.09", vehicleType: "Flatbed Truck", carrier: "Song Hau Trans Co Ltd", mapMode: "Truck",
-        customer: "Supply point Can Tho", channel: "GT", origin: "MDC Hoc Mon", destination: "Supply point Can Tho", route: "MDC Hoc Mon → Thuan An → Can Tho", stage: "In Transit",
+        customer: "Can Tho", channel: "GT", origin: "DOP", destination: "Can Tho", route: "DOP → OPMT → Can Tho", stage: "In Transit",
         current: "In transit", next: "Arrived at Ship-to", eta: "26 Aug, 14:30", varianceMin: 12, source: "Observed", sourceDetail: "GPS position received from MileApp",
         freshness: "6 min ago", feed: "MileApp GPS", exception: "None", exceptionLevel: "none", progress: 20, distance: "40 of 205 km",
-        currentPlace: "National Route 1, south-west of Thuan An, en route to Can Tho", originTime: "Departed 26 Aug, 09:10", destinationTime: "Expected 26 Aug, 14:30",
+        currentPlace: "National Route 1, south-west of OPMT, en route to Can Tho", originTime: "Departed 26 Aug, 09:10", destinationTime: "Expected 26 Aug, 14:30",
         coords: { origin: [10.884,106.593], current: [10.80,106.55], destination: [10.034,105.788] },
         travelled: [[10.884,106.593],[10.925,106.713],[10.80,106.55]], remaining: [[10.80,106.55],[10.4,106.1],[10.034,105.788]],
-        tripJourney: [{ trip: "TR-9304", route: "MDC Hoc Mon → Thuan An → Can Tho", status: "Current", vehicle: "50H-661.09" }]
+        tripJourney: [{ trip: "TR-9304", route: "DOP → OPMT → Can Tho", status: "Current", vehicle: "50H-661.09" }]
       },
       {
         order: "SO-260826-2301", trip: "TR-9304", vehicle: "50H-661.09", vehicleType: "Flatbed Truck", carrier: "Song Hau Trans Co Ltd", mapMode: "Truck",
-        customer: "YCH DC Thuan An", channel: "GT", origin: "MDC Hoc Mon", destination: "YCH DC Thuan An", route: "MDC Hoc Mon → Thuan An", stage: "At Destination",
+        customer: "OPMT", channel: "GT", origin: "DOP", destination: "OPMT", route: "DOP → OPMT", stage: "At Destination",
         current: "POD Completed", next: "POD Completed", eta: "Arrived 26 Aug, 09:35", varianceMin: -20, source: "Observed", sourceDetail: "POD captured via MileApp",
         freshness: "Delivered 40 min ago", feed: "MileApp POD capture", exception: "None", exceptionLevel: "none", progress: 100, distance: "25 of 25 km",
-        currentPlace: "YCH DC Thuan An", originTime: "Departed 26 Aug, 09:10", destinationTime: "Arrived 26 Aug, 09:35",
+        currentPlace: "OPMT", originTime: "Departed 26 Aug, 09:10", destinationTime: "Arrived 26 Aug, 09:35",
         coords: { origin: [10.884,106.593], current: [10.925,106.713], destination: [10.925,106.713] },
         travelled: [[10.884,106.593],[10.925,106.713]], remaining: [[10.925,106.713]],
         deliveredEnRoute: true,
-        tripJourney: [{ trip: "TR-9304", route: "MDC Hoc Mon → Thuan An", status: "Completed", vehicle: "50H-661.09" }]
+        tripJourney: [{ trip: "TR-9304", route: "DOP → OPMT", status: "Completed", vehicle: "50H-661.09" }]
       },
       // The frozen worked example (KB/CT_TCT_SPVB_Working_File_v11.md, VD4):
-      // 1,120 cases of Pepsi 390ml PET, 28 pallets, MDC Hoc Mon to Nam Can
+      // 1,120 cases of Pepsi 390ml PET, 28 pallets, DOP to Nam Can
       // Tho Distribution, delivered inside its 12:00 to 15:00 window. Shown
       // here as delivered and closed, matching V4's illustrative timeline.
       {
         order: "SO-260826-2214", trip: "VN-TR-2214", vehicle: "61C-214.85", vehicleType: "Wingbox 20ft", carrier: "Truong Phat Van Tai JSC", mapMode: "Truck",
-        customer: "Nam Can Tho Distribution", channel: "GT", origin: "MDC Hoc Mon", destination: "Nam Can Tho Distribution", route: "MDC Hoc Mon → Thuan An → Can Tho → Nam Can Tho Distribution", stage: "At Destination",
+        customer: "Nam Can Tho Distribution", channel: "GT", origin: "DOP", destination: "Nam Can Tho Distribution", route: "DOP → OPMT → Can Tho → Nam Can Tho Distribution", stage: "At Destination",
         current: "POD Completed", next: "POD Completed", eta: "Arrived 26 Aug, 13:35", varianceMin: -25, source: "Observed", sourceDetail: "POD captured via MileApp",
         freshness: "12 min ago", feed: "MileApp POD capture", exception: "None", exceptionLevel: "none", progress: 100, distance: "205 of 205 km",
         currentPlace: "Nam Can Tho Distribution (1,120 cases Pepsi 390ml PET, 28 pallets; delivery window 12:00 to 15:00)",
         originTime: "Departed 26 Aug, 06:30", destinationTime: "Arrived 26 Aug, 13:35",
         coords: { origin: [10.884,106.593], current: [10.034,105.788], destination: [10.034,105.788] },
         travelled: [[10.884,106.593],[10.925,106.713],[10.034,105.788]], remaining: [[10.034,105.788]],
-        tripJourney: [{ trip: "VN-TR-2214", route: "MDC Hoc Mon → Can Tho", status: "Current", vehicle: "61C-214.85" }]
+        tripJourney: [{ trip: "VN-TR-2214", route: "DOP → Can Tho", status: "Current", vehicle: "61C-214.85" }]
       }
     ];
     orders.push(...multiLegCases);
@@ -1408,14 +1428,6 @@
     const trips = buildTrips();
     const liveOrders = orders.filter(order => order.stage !== "Return");
     const liveTrips = trips.filter(trip => trip.stage !== "Return");
-    /* Flattened exception feed (explicit user requirement, 2026-08-28): one
-       row per exception event, across every live order, for the dedicated
-       Exceptions perspective. Built once orders are final; exceptionHistoryFor
-       is a function declaration further down and is hoisted, so it is
-       already callable here. */
-    const allExceptionEntries = liveOrders.flatMap(order => exceptionHistoryFor(order).map((entry, index) => ({
-      ...entry, id: `${order.order}-${index}`, order: order.order, trip: order.trip, shipTo: order.customer, channel: order.channel
-    })));
 
     /* Milestone 4, "Truck queue in", is live for this scope (VD5): it is
        active in Vietnam, unlike the Indonesian scope where it was flagged
@@ -1480,7 +1492,8 @@
       laneSearch: document.getElementById("lane-search"),
       source: document.getElementById("source-filter"), exception: document.getElementById("exception-filter"),
       empty: document.getElementById("empty-state"), journey: document.getElementById("journey-view"),
-      network: document.getElementById("network-view"), drawer: document.getElementById("detail-drawer"), backdrop: document.getElementById("drawer-backdrop")
+      network: document.getElementById("network-view"), drawer: document.getElementById("detail-drawer"), backdrop: document.getElementById("drawer-backdrop"),
+      exceptionDrawer: document.getElementById("exception-drawer")
     };
 
     function displayValue(value) {
@@ -1541,6 +1554,18 @@
       return source === "Observed" ? "green" : source === "Computed" ? "blue" : "violet";
     }
 
+    /* Display text for the channel badge only (explicit user requirement,
+       2026-08-31): the underlying channel value stays "SP", matching the
+       transfer channel documented in KB/CT_TCT_SPVB_Working_File_v11.md
+       (V2, "channel SP"), a warehouse-to-warehouse transfer concept
+       distinct from the retired "Supply Point" site-naming pattern (VD32).
+       Only the on-screen word changes, since "SP" printed right next to a
+       destination read as the same retired pattern regardless of what it
+       actually meant. */
+    function channelBadgeLabel(channel) {
+      return channel === "SP" ? "Transfer" : channel;
+    }
+
     function matchesJourneyStage(entity) {
       if (state.stage === "All") return true;
       if (state.perspective === "trips") {
@@ -1590,15 +1615,6 @@
       { key: "source", label: "Position source", value: entity => entity.source },
       { key: "exception", label: "Exception", value: entity => exceptionSortRank(entity, false) }
     ];
-    const EXCEPTION_COLUMNS = [
-      { key: "type", label: "Exception", value: entry => entry.type },
-      { key: "order", label: "Order", value: entry => entry.order },
-      { key: "trip", label: "Trip", value: entry => entry.trip },
-      { key: "shipTo", label: "Ship-to", value: entry => entry.shipTo },
-      { key: "status", label: "Status", value: entry => ({ Open: 0, Snoozed: 1, Resolved: 2 }[entry.status] ?? 3) },
-      { key: "raised", label: "Raised", value: entry => sortableMinutes(entry.raisedAt) }
-    ];
-
     function applySort(list, columns) {
       const column = state.sortKey && columns.find(candidate => candidate.key === state.sortKey);
       if (!column) return list;
@@ -1675,7 +1691,7 @@
         <tr tabindex="0" data-entity="${escapeHtml(entity.order)}" aria-label="Open order ${escapeHtml(entity.order)} detail">
           <td><span class="order-link">${escapeHtml(entity.order)}</span></td>
           <td><span class="linked-entity">${escapeHtml(tripId)}</span>${isPastLeg ? `<span class="subtext">Earlier trip on this order's journey</span>` : ""}</td>
-          <td><strong>${escapeHtml(entity.destination)}</strong><span class="channel-badge">${escapeHtml(entity.channel)}</span></td>
+          <td><strong>${escapeHtml(entity.destination)}</strong><span class="channel-badge">${escapeHtml(channelBadgeLabel(entity.channel))}</span></td>
           <td>${escapeHtml(route)}${routeNote}</td>
           ${isPastLeg ? `<td><span class="badge gray">Completed</span></td>` : `<td>${etaCell(entity)}</td>`}
           ${isSpvb ? "" : isPastLeg
@@ -1693,7 +1709,6 @@
     }
 
     function renderTable() {
-      if (state.perspective === "exceptions") { renderExceptionsTable(); return; }
       const filtered = filteredEntities();
       const isOrders = state.perspective === "orders";
       // Exception and Position source detail are internal, hidden from the
@@ -1716,7 +1731,7 @@
         <tr tabindex="0" data-entity="${escapeHtml(entity.trip)}" aria-label="Open trip ${escapeHtml(entity.trip)} detail">
           <td><span class="order-link">${escapeHtml(entity.trip)}</span><span class="subtext">${escapeHtml(entity.route)}</span></td>
           <td><span class="entity-count">${entity.orderCount} order${entity.orderCount === 1 ? "" : "s"}</span><span class="subtext">${escapeHtml(entity.orderIds.slice(0, 3).join(" · "))}${entity.orderCount > 3 ? ` · +${entity.orderCount - 3}` : ""}</span></td>
-          <td><strong>${escapeHtml(entity.shipTo)}</strong><span class="channel-badge">${escapeHtml(entity.channel)}</span></td>
+          <td><strong>${escapeHtml(entity.shipTo)}</strong><span class="channel-badge">${escapeHtml(channelBadgeLabel(entity.channel))}</span></td>
           <td>${escapeHtml(entity.route)}</td>
           <td>${etaCell(entity)}</td>
           <td><span class="badge ${sourceClass(entity.source)}">${escapeHtml(entity.source)}</span><span class="subtext">${escapeHtml(entity.freshness)}</span></td>
@@ -1726,61 +1741,6 @@
       els.empty.classList.toggle("visible", filtered.length === 0);
       bindRows();
       if (state.view === "network") renderNetwork(filtered);
-    }
-
-    /* The Exceptions perspective (explicit user requirement, 2026-08-28):
-       a client should see every exception's status in one list, without
-       opening each order or trip in turn. It reuses the same table shell,
-       search box and status filter as Orders/Trips, but its own columns,
-       filter and metrics, since an exception event is not an order or a
-       trip. Journey stage, Network view and the source filter do not apply
-       here and are hidden by setPerspective. */
-    function filteredExceptionEntries() {
-      const q = state.query.trim().toLowerCase();
-      const filtered = allExceptionEntries.filter(entry => {
-        const text = [entry.type, entry.order, entry.trip, entry.shipTo, entry.note].join(" ").toLowerCase();
-        return (state.exception === "All" || entry.status === state.exception) && (!q || text.includes(q));
-      });
-      return applySort(filtered, EXCEPTION_COLUMNS);
-    }
-
-    function renderExceptionsTable() {
-      const filtered = filteredExceptionEntries();
-      document.getElementById("entity-table-head").innerHTML = EXCEPTION_COLUMNS.map(sortableHeaderCell).join("");
-      bindSortHeaders();
-      els.body.innerHTML = filtered.map(entry => `
-        <tr tabindex="0" data-order="${escapeHtml(entry.order)}" aria-label="Open order ${escapeHtml(entry.order)} detail">
-          <td><strong>${escapeHtml(entry.type)}</strong>${entry.note ? `<span class="subtext">${escapeHtml(entry.note)}</span>` : ""}</td>
-          <td><span class="order-link">${escapeHtml(entry.order)}</span></td>
-          <td><span class="linked-entity">${escapeHtml(entry.trip)}</span></td>
-          <td><strong>${escapeHtml(entry.shipTo)}</strong><span class="channel-badge">${escapeHtml(entry.channel)}</span></td>
-          <td><span class="badge ${exceptionStatusClass(entry)}">${escapeHtml(entry.status)}</span></td>
-          <td>${escapeHtml(entry.raisedAt)}${entry.updatedAt && entry.updatedAt !== entry.raisedAt ? `<span class="subtext">Updated ${escapeHtml(entry.updatedAt)}</span>` : ""}</td>
-        </tr>`).join("");
-      els.empty.classList.toggle("visible", filtered.length === 0);
-      els.body.querySelectorAll("tr").forEach(row => {
-        const open = () => openOrderDrawer(orders.find(order => order.order === row.dataset.order), row);
-        row.addEventListener("click", open);
-        row.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); open(); } });
-      });
-    }
-
-    function updateExceptionMetrics() {
-      const openCount = allExceptionEntries.filter(entry => entry.status === "Open").length;
-      const snoozedCount = allExceptionEntries.filter(entry => entry.status === "Snoozed").length;
-      const resolvedCount = allExceptionEntries.filter(entry => entry.status === "Resolved").length;
-      document.getElementById("metric-active").textContent = allExceptionEntries.length;
-      document.getElementById("metric-active-label").textContent = "Total Exceptions";
-      document.getElementById("metric-route-context").textContent = `Across ${liveOrders.length} active orders`;
-      document.getElementById("metric-origin").textContent = openCount;
-      document.getElementById("metric-secondary-label").textContent = "Open";
-      document.getElementById("metric-secondary-context").textContent = "Needs coordinator action";
-      document.getElementById("metric-transit").textContent = snoozedCount;
-      document.getElementById("metric-transit-label").textContent = "Snoozed";
-      document.getElementById("metric-position-context").textContent = "Deferred, due to reopen";
-      document.getElementById("metric-exceptions").textContent = resolvedCount;
-      document.getElementById("metric-exception-label").textContent = "Resolved";
-      document.getElementById("metric-exception-context").textContent = "Closed out";
     }
 
     function bindRows() {
@@ -1902,37 +1862,17 @@
       selectedNetworkRoute = null;
       routeRequestToken += 1;
       const isOrders = perspective === "orders";
-      const isExceptions = perspective === "exceptions";
       document.getElementById("orders-perspective-button").classList.toggle("active", isOrders);
       document.getElementById("trips-perspective-button").classList.toggle("active", perspective === "trips");
-      document.getElementById("exceptions-perspective-button").classList.toggle("active", isExceptions);
       document.getElementById("orders-perspective-button").setAttribute("aria-pressed", String(isOrders));
       document.getElementById("trips-perspective-button").setAttribute("aria-pressed", String(perspective === "trips"));
-      document.getElementById("exceptions-perspective-button").setAttribute("aria-pressed", String(isExceptions));
-      document.querySelector(".journey-filter").style.display = isExceptions ? "none" : "";
-      document.querySelector(".view-toggle").style.display = isExceptions ? "none" : "";
-      els.source.style.display = isExceptions ? "none" : "";
       document.querySelectorAll(".metric-card").forEach(card => { card.classList.remove("selected"); card.setAttribute("aria-pressed", "false"); });
       // The POD Completed KPI only applies to Orders (explicit user
       // requirement, 2026-08-28): a trip's own POD completion is not tracked
       // the same way, since a trip can carry several orders each with their
-      // own POD. Placed before the isExceptions early return so it is
-      // correctly hidden for both Trips and Exceptions.
+      // own POD.
       document.getElementById("metric-pod-card").style.display = isOrders ? "" : "none";
       updateMetricGridColumns();
-
-      if (isExceptions) {
-        document.getElementById("entity-list-heading").textContent = "All exceptions";
-        document.getElementById("entity-table").setAttribute("aria-label", "Exception history across active orders");
-        els.search.placeholder = "Search exceptions, orders or ship-tos";
-        els.search.setAttribute("aria-label", "Search exceptions, orders or ship-tos");
-        document.getElementById("empty-title").textContent = "No exceptions match these filters";
-        document.getElementById("empty-copy").textContent = "Clear one or more filters to restore the exception list.";
-        setView("journey");
-        updateExceptionMetrics();
-        renderTable();
-        return;
-      }
 
       document.getElementById("entity-list-heading").textContent = isOrders ? "Active orders" : "Active trips";
       document.getElementById("entity-table").setAttribute("aria-label", isOrders ? "Active transport orders" : "Active transport trips");
@@ -2499,7 +2439,14 @@
       const columnCount = milestones.length;
       const margin = 100 / (2 * columnCount);
       const span = 100 - 2 * margin;
-      const progressWidth = currentIndex < 0 ? 0 : currentIndex / (columnCount - 1) * span;
+      // Driven by the same order/trip progress percentage as the map, the
+      // distance travelled, and the network sidebar's "X% travelled" card
+      // (LS-D046), not by how many of the 8 evenly spaced steps are marked
+      // done: those two used to disagree (a trip could sit at step 3 of 8,
+      // 43%, while its map position and distance were 60% along the route),
+      // which read as the timeline simply being wrong (2026-08-28 meeting).
+      const overallProgress = Math.max(0, Math.min(100, Number(order.progress) || 0));
+      const progressWidth = overallProgress / 100 * span;
       const steps = milestones.map((name, index) => {
         const done = index < currentIndex;
         const current = index === currentIndex;
@@ -2522,13 +2469,29 @@
       const scaleEnd = milestoneMinutes[milestoneMinutes.length - 1];
       const scaleSpan = Math.max(1, scaleEnd - scaleStart);
       const tickPositions = milestoneMinutes.map(minutes => 2 + (minutes - scaleStart) / scaleSpan * 96);
-      const scaleProgressWidth = currentIndex < 0 ? 0 : Math.max(0, tickPositions[currentIndex] - 2);
+      // Same overallProgress fraction as the step track above, so the two
+      // bars, and the map, never disagree on how far along the trip is.
+      const scaleProgressWidth = overallProgress / 100 * 96;
+      // Ticks are spaced by real elapsed time, not by even columns, so the
+      // pre-transit milestones (minutes apart) crowd together while transit
+      // (hours) spreads out; showing every label unconditionally overlapped
+      // them into an unreadable stack on the crowded side. A label now only
+      // shows if it clears a minimum pixel gap from the last shown one
+      // (estimated against the scale's own width below), always keeping the
+      // first, current and last regardless of crowding since those anchor
+      // the reading. Hovering any tick still shows its time via the title.
+      const scaleWidthPx = columnCount * 105;
+      const minGapPercent = 34 / scaleWidthPx * 100;
+      let lastLabelPercent = -Infinity;
       const scaleSteps = milestones.map((name, index) => {
         const reached = index <= currentIndex;
-        const showLabel = index === 0 || index === currentIndex || index === milestones.length - 1;
-        return `<span class="journey-scale-tick ${reached ? "reached" : ""}" style="left:${tickPositions[index]}%" title="${escapeHtml(name)} · ${escapeHtml(expectedTimes[index])}" aria-label="${escapeHtml(name)} at ${escapeHtml(expectedTimes[index])}">${showLabel ? `<b>${escapeHtml(expectedTimes[index])}</b>` : ""}</span>`;
+        const position = tickPositions[index];
+        const isAnchor = index === 0 || index === currentIndex || index === milestones.length - 1;
+        const showLabel = isAnchor || position - lastLabelPercent >= minGapPercent;
+        if (showLabel) lastLabelPercent = position;
+        return `<span class="journey-scale-tick ${reached ? "reached" : ""}" style="left:${position}%" title="${escapeHtml(name)} · ${escapeHtml(expectedTimes[index])}" aria-label="${escapeHtml(name)} at ${escapeHtml(expectedTimes[index])}">${showLabel ? `<b>${escapeHtml(expectedTimes[index])}</b>` : ""}</span>`;
       }).join("");
-      document.getElementById("order-journey").innerHTML = `<div class="journey-track" style="grid-template-columns:repeat(${columnCount}, minmax(105px, 1fr));min-width:${columnCount * 105}px;--journey-margin:${margin}%"><span class="journey-progress-line" style="width:${progressWidth}%"></span>${steps}</div><div class="journey-scale" aria-label="Journey time scale"><span class="journey-scale-progress" style="width:${scaleProgressWidth}%"></span>${scaleSteps}</div>`;
+      document.getElementById("order-journey").innerHTML = `<div class="journey-track" style="grid-template-columns:repeat(${columnCount}, minmax(105px, 1fr));min-width:${columnCount * 105}px;--journey-margin:${margin}%"><span class="journey-progress-line" style="width:${progressWidth}%"></span>${steps}</div><div class="journey-scale" style="min-width:${scaleWidthPx}px" aria-label="Journey time scale"><span class="journey-scale-progress" style="width:${scaleProgressWidth}%"></span>${scaleSteps}</div>`;
     }
 
     function setText(id, value) { document.getElementById(id).textContent = displayValue(value); }
@@ -2596,10 +2559,13 @@
           <strong>${escapeHtml(entry.type)}</strong>
           <span>${entry.order ? `${escapeHtml(entry.order)} · ` : ""}Raised ${escapeHtml(entry.raisedAt)}${entry.updatedAt && entry.updatedAt !== entry.raisedAt ? ` · Updated ${escapeHtml(entry.updatedAt)}` : ""}${entry.note ? `<span class="subtext">${escapeHtml(entry.note)}</span>` : ""}</span>
           <span><span class="badge ${exceptionStatusClass(entry)}">${escapeHtml(entry.status)}</span></span>
-          ${entry.order ? `<button type="button" data-open-order="${escapeHtml(entry.order)}">Open order</button>` : "<span></span>"}
+          <span class="relationship-actions">${entry.order ? `<button type="button" data-open-order="${escapeHtml(entry.order)}">Open order</button>` : ""}<button type="button" data-open-exception>Open the exception</button></span>
         </div>`).join("")
         : `<p class="none">No exceptions recorded for this ${isOrders ? "order" : "trip"}.</p>`;
       if (!isOrders) list.querySelectorAll("[data-open-order]").forEach(button => button.addEventListener("click", () => openOrderDrawer(orders.find(order => order.order === button.dataset.openOrder), button)));
+      // Opens the placeholder exception panel (LS-D051): resolving the
+      // exception is the frontend team's own page, out of scope here.
+      list.querySelectorAll("[data-open-exception]").forEach(button => button.addEventListener("click", openExceptionPanel));
     }
 
     function openOrderDrawer(order, trigger) {
@@ -2669,8 +2635,25 @@
       els.backdrop.classList.remove("open");
       els.drawer.classList.remove("open");
       els.drawer.setAttribute("aria-hidden", "true");
+      closeExceptionPanel();
       document.body.style.overflow = "";
       if (previousFocus && previousFocus.focus) previousFocus.focus();
+    }
+
+    /* Placeholder only (LS-D051): exception resolution is the frontend
+       team's own page, out of scope here. This panel exists to demonstrate
+       the agreed interaction, not to resolve anything: it stacks on top of
+       the open Trip or Order drawer rather than replacing it, and going
+       back leaves that drawer exactly as it was underneath. */
+    function openExceptionPanel() {
+      els.exceptionDrawer.classList.add("open");
+      els.exceptionDrawer.setAttribute("aria-hidden", "false");
+      document.getElementById("exception-drawer-back").focus();
+    }
+
+    function closeExceptionPanel() {
+      els.exceptionDrawer.classList.remove("open");
+      els.exceptionDrawer.setAttribute("aria-hidden", "true");
     }
 
     function clearFilters() {
@@ -2723,17 +2706,6 @@
     document.querySelectorAll(".stage-chip").forEach(button => button.addEventListener("click", () => setStage(button.dataset.stage)));
     document.querySelectorAll(".metric-card").forEach(card => card.addEventListener("click", () => {
       const metric = card.dataset.metric;
-      if (state.perspective === "exceptions") {
-        state.exception = metric === "primary" ? "All" : metric === "exceptions" ? "Open" : metric === "late" ? "Snoozed" : "Resolved";
-        els.exception.value = state.exception;
-        document.querySelectorAll(".metric-card").forEach(metricCard => {
-          const active = metricCard === card;
-          metricCard.classList.toggle("selected", active);
-          metricCard.setAttribute("aria-pressed", String(active));
-        });
-        renderTable();
-        return;
-      }
       if (metric === "primary") {
         setStage(state.perspective === "orders" ? "All" : "In Transit");
         return;
@@ -2754,7 +2726,6 @@
     }));
     document.getElementById("orders-perspective-button").addEventListener("click", () => setPerspective("orders"));
     document.getElementById("trips-perspective-button").addEventListener("click", () => setPerspective("trips"));
-    document.getElementById("exceptions-perspective-button").addEventListener("click", () => setPerspective("exceptions"));
     document.getElementById("role-coordinator-button").addEventListener("click", () => setRole("coordinator"));
     document.getElementById("role-spvb-button").addEventListener("click", () => setRole("spvb"));
     els.search.addEventListener("input", event => { state.query = event.target.value; els.globalSearch.value = event.target.value; els.laneSearch.value = event.target.value; renderTable(); });
@@ -2766,6 +2737,7 @@
     document.getElementById("journey-view-button").addEventListener("click", () => setView("journey"));
     document.getElementById("network-view-button").addEventListener("click", () => setView("network"));
     document.getElementById("close-drawer").addEventListener("click", closeDrawer);
+    document.getElementById("exception-drawer-back").addEventListener("click", closeExceptionPanel);
     els.backdrop.addEventListener("click", closeDrawer);
     document.getElementById("refresh-button").addEventListener("click", event => {
       const button = event.currentTarget; button.textContent = "✓ Data current"; button.disabled = true;
@@ -2773,11 +2745,18 @@
     });
     document.addEventListener("keydown", event => {
       if (event.key === "Escape") {
-        if (els.drawer.classList.contains("open")) closeDrawer();
+        if (els.exceptionDrawer.classList.contains("open")) closeExceptionPanel();
+        else if (els.drawer.classList.contains("open")) closeDrawer();
         else if (selectedNetworkEntityId) clearNetworkSelection();
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") { event.preventDefault(); els.globalSearch.focus(); }
-      if (event.key === "Tab" && els.drawer.classList.contains("open")) {
+      if (event.key === "Tab" && els.exceptionDrawer.classList.contains("open")) {
+        const focusable = [...els.exceptionDrawer.querySelectorAll('button,[href],input,select,[tabindex]:not([tabindex="-1"])')].filter(el => !el.disabled);
+        if (!focusable.length) return;
+        const first = focusable[0], last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      } else if (event.key === "Tab" && els.drawer.classList.contains("open")) {
         const focusable = [...els.drawer.querySelectorAll('button,[href],input,select,[tabindex]:not([tabindex="-1"])')].filter(el => !el.disabled);
         if (!focusable.length) return;
         const first = focusable[0], last = focusable[focusable.length - 1];
@@ -2789,7 +2768,6 @@
     setPerspective("trips");
     const pageParameters = new URLSearchParams(window.location.search);
     if (pageParameters.get("perspective") === "orders") setPerspective("orders");
-    if (pageParameters.get("perspective") === "exceptions") setPerspective("exceptions");
     if (pageParameters.get("role") === "spvb") setRole("spvb");
     if (pageParameters.get("view") === "network") setView("network");
     const requestedFleetOrder = pageParameters.get("fleet");
