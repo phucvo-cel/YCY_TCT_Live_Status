@@ -4,7 +4,7 @@ Project instructions, version 2. Replaces the current set in full. Written to be
 
 Scope: two engagement tracks with YCH (contact: Sardar Ahmed). Track 1, the Supply Chain Orchestration Control Tower for a YCH FMCG manufacturing customer, which produced the layering deck and the YCHBEACON HTML mockup. Track 2, the Transport Control Tower for YCH's own road transport operation, which is producing a second deck and the YCH TCT HTML mockup. Deliverables are slides, HTML mockups, and analysis written for Pierre to present.
 
-Track 2 scope, current from 27 August 2026: Vietnam, shipper Suntory PepsiCo Vietnam Beverage (SPVB), superseding the original Indonesian scope (shipper referred to as FFI). See `KB/CT_TCT_SPVB_Working_File_v7.md`.
+Track 2 scope, current from 27 August 2026: Vietnam, shipper Suntory PepsiCo Vietnam Beverage (SPVB), superseding the original Indonesian scope (shipper referred to as FFI). See `KB/CT_TCT_SPVB_Working_File_v11.md`.
 
 Personal preferences (language, em dashes, the shorthand codes NS, IDU, NE, PE, ISR, FCC) live in the user preferences field, not here. They apply on top of this file.
 
