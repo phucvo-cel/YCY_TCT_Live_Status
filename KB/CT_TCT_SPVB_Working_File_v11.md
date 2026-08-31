@@ -6,6 +6,14 @@ Project reference, version 1, opened 27 August 2026. This file covers the Transp
 
 **Lineage.** This file is forked from `CT_TCT_Working_File_v14.md`, which carried the same engagement under its previous scope (Indonesian operation, dairy shipper). On 27 August 2026 YCH informed CEL that the country is Vietnam and the shipper is Pepsi, confirmed by Pierre as SPVB, the beverage entity only. The parent file is retired as the geographic record and stays untouched; its decisions D1 to D88 are inherited here by reference, with the exceptions listed in V7. All programme dates, teams, streams, commercial structure and doctrine carry over unchanged. New decisions in this file carry the VD prefix so the two series never collide.
 
+Change log, v10 to v11 (28 August 2026): the YCH scoping alignment meeting folded in, section V10. What YCH stated now replaces what the mockup assumed on sites, sequence, dates and module scope. VD32 to VD35 added. Three earlier decisions are amended by it: VD2 the network anchor, VD4 the two-warehouse structure, and V8 question 1.
+
+Change log, v9 to v10 (28 August 2026): VD29 to VD31 added. Every rule now carries an owning role, an escalation and an audience list. The Playbook page rebuilt around one rule list and two views. The rule panel and the editor merged.
+
+Change log, v8 to v9 (28 August 2026): the playbook editor built, phase A1. VD25 to VD28 added: the editor's shape, the piped against computed data distinction, where scoring lives, and client-agnostic design as a standing aim. PB-P19 added to the parameter register.
+
+Change log, v7 to v8 (28 August 2026): VD23 and VD24 added, the option timeline drops the part of the journey that is the same on every option, and the panel version tag now matches the filename.
+
 Change log, v6 to v7 (28 August 2026): VD22 added, the panel is resizable by its edge, its option cards hold one height, and the option cycle answers the keyboard as well as the arrows.
 
 Change log, v5 to v6 (28 August 2026): PB-04 folded into PB-11, so all twenty-two rules are on the agreed catalogue. The exception panel rebuilt around the options. VD18 to VD21 added. The Y3 MileApp lead is recorded as Mrs. Lee Kiow.
@@ -56,11 +64,50 @@ Administrative naming follows the post-merger map of July 2025: Binh Duong is no
 
 **VD3. SPVB is named on screen.** Site labels, order headers and the shipper field carry "SPVB", with "Suntory PepsiCo Vietnam Beverage" spelled out once on the network screen. Rationale: matches the precedent of naming the client on the parallel pitch, and YCH itself named the shipper. If Sardar restricts the audiences that may see the name, the string is centralised and swaps in one edit.
 
+**Amended by the scoping meeting, see V10.** The two sites below are now named by YCH as DOP and OPMT / Sóng Thần, and the mockup's names are the ones to change.
+
 **VD4. The two-warehouse structure is kept.** Master DC in-plant at Hoc Mon, offsite YCH DC at Thuan An, a shuttle between them modelled as its own trip (inheriting D19), and the dock screen switching one site at a time (inheriting D20). The whole structure is tagged Assumed: it mirrors the previous scope's pattern and is kept so the screens survive intact, not because YCH has described the Vietnamese operation. Straight-line distance between the two sites is about 13 km; the road leg is assumed at 25 km and 50 minutes.
 
 **The flow (inheriting D18, re-anchored, all Assumed).** The Hoc Mon plant feeds MDC Hoc Mon and YCH DC Thuan An. MDC Hoc Mon sends overflow to Thuan An and Thuan An does not send back. Thuan An ships onward to the supply points as transfers (channel SP) and to customers as MT and GT deliveries around greater Ho Chi Minh City. YCH manages every facility to facility transfer; YCH does not manage every last mile. No relay between supply points (inheriting D37): the north is served direct on the long lane.
 
 **Capacities, all Invented until stated.** MDC Hoc Mon: 23 outbound docks, 15 staging lanes. YCH DC Thuan An: 12 outbound docks, 8 staging lanes. The Hoc Mon figures are the ones the mockup's floor arithmetic already runs on, carried over from the previous scope where they were the one stated capacity; here nothing is stated, so both sites are Invented and the first question in V8 asks for both.
+
+## V10. What YCH stated at the scoping alignment meeting
+
+Source: YCH scoping alignment meeting summary, received 28 August 2026. This section is Known, not Assumed, and it overrides anything earlier in this file that conflicts with it.
+
+**VD32. The network is three warehouses, and the first release is one of them.** YCH operates three SPVB-exclusive warehouses in Vietnam.
+
+| Site | What YCH says it is | In the mockup today |
+|---|---|---|
+| DOP | In-plant warehouse in Ho Chi Minh City, about 25 km from OPMT | Drawn as MDC Hóc Môn, the in-plant master DC |
+| OPMT, also called Sóng Thần | On-premises modern trade warehouse, also serving as the HCM DC | Drawn as the offsite DC at Thuận An |
+| Bắc Ninh | One warehouse in the north | Drawn as SP Bắc Ninh, a supply point |
+
+Two things line up by luck and are worth keeping: the 25 km between the two HCM sites is exactly the shuttle distance the mockup assumed, and Sóng Thần is the industrial park beside the YCH-Protrade DistriPark the network was anchored on. What has to change is the naming: DOP and OPMT / Sóng Thần replace MDC Hóc Môn and Thuận An on every screen, and Bắc Ninh is promoted from an invented supply point to a stated warehouse. Which HCM warehouse goes first is not yet confirmed and is now the single most useful answer YCH can give us.
+
+**VD33. The first three months cover one HCM warehouse only.** The implementation starts with one HCM warehouse and expands to the remaining sites afterwards. Consequence for the mockup: the eleven-node network is the target state, not the Release 1 state, and the deck and the working file carry the phasing rather than the screens showing an emptier network. That is the doctrine already recorded for degradations and phasing.
+
+**VD34. Two modules are out of scope for Vietnam.** Modules 2.4 and 6.4, both cash-management related, are excluded. To check against our own catalogue before the workshops: which rules, if any, read feeds from those blocks. Responsibilities are to be distributed across YCH, Y3 or MileApp and CEL, and existing SPVB and FFI standards are to be reused rather than designing Vietnam independently.
+
+**VD35. System readiness is uneven, and the feed ladder is the answer.** What YCH stated by function:
+
+| Function | Readiness |
+|---|---|
+| Transport planning | MileApp available |
+| In-transit visibility | MileApp available |
+| POD management | MileApp available |
+| Transporter administration | Not in MileApp yet, needs development, potentially several weeks |
+| Dock management | YCH or Y3 capability exists, customisation may be needed |
+| Loading management | YCH or Y3 capability exists, customisation may be needed |
+
+Two consequences for what is already built. First, PB-11, no transporter accepts the trip or none is assigned before the cut-off, reads acceptance data from block 2.1, which sits in the function that does not exist yet; the rule stays in the catalogue and its feed is marked as pending development. Second, the recommendation scorecard's acceptance metric depends on the same gap, so the transporter shortlist is demonstrable but not yet computable from live data.
+
+**The dates, replacing anything earlier in this file.** Vietnam implementation runs September to December 2026, with the first site live by January 2027 at the latest. FFI Indonesia follows from January to March 2027, targeting go-live in April 2027. The 31 August start is not feasible; kick-off could begin the following week, subject to YCH and MileApp alignment. MileApp is not yet implemented in Vietnam, so YCH and Y3 must align before formal kick-off, and YCH Vietnam is currently taking over a warehouse, which constrains their resources.
+
+**What this changes in our own plan.** The Blueprint sign-off and Release 1 gate dates recorded in V1 came from the previous scope and now sit inside a different implementation window. They are not restated here as facts; they are flagged as needing confirmation with Julien and Sardar against the September to December window.
+
+**Open against this section.** Which HCM warehouse is first, whether the mockup should be re-skinned to DOP and OPMT immediately or after that confirmation, and whether the Bắc Ninh site is in Release 1 scope at all.
 
 ## V3. Lanes and modes
 
@@ -164,6 +211,26 @@ Industry practice consulted before the design (28 August 2026): scenario compari
 
 **VD22. The exception panel is resizable, and its option row never moves.** The panel takes its width from a variable and carries the drag handle the other ATOM tools use on their panel edge: grab it and pull, floor 680 pixels so the option row stays readable, ceiling the window less 80 so the queue behind stays visible. Default width is now 980 pixels rather than 820. Every option card holds one fixed height, so choosing a different option no longer pushes or pulls the content below it: measured at 236 pixels on all four selections. The option lanes carry more space between them. The arrows step the selection, and so do the left and right keys while an exception panel is open; the Add an option card is not part of the cycle.
 
+**VD23. The option timeline starts ninety minutes before now, not at the dock-out.** The journey already travelled is identical on every option, so drawing all nine hours of it spent two thirds of the width saying nothing. The axis now runs from ninety minutes before now to three hours past the close of the receiving window. A break mark at the left edge, with the departure time in its tooltip, says the drawing skips the earlier journey rather than pretending it did not happen. The caption under the heading is gone: what solid, striped, the green band and the red line mean now sits in the heading tooltip. The first and last axis labels are pinned inside the track so neither is cut off.
+
+**VD24. Version tags match filenames, and a screen field never strands its tooltip.** The on-screen build tag carries the same number as the file: `YCH_TCT_SPVB_v10.html` reads v0.10. The information icon is glued to the word before it, so a line break can never leave it alone on a line of its own; checked by measuring every icon in the panel against the line of the text preceding it. On-screen labels are shortened where the full wording can live in the tooltip instead: the detection strip now reads Departed Hóc Môn, Speed dropped on Route 1, ETA crossed the window.
+
+**VD25. The playbook editor is sentence rows, an option list and a scorecard, on one panel.** A rule is three things and they need three editors, but they are one thought, so they sit behind a segmented control in the same panel and nothing navigates away. The trigger is a list of conditions, each read as a sentence built from dropdowns, with one all-or-any control rather than hand-nested brackets; a rule that needs nesting is two rules. Every threshold is a chip pointing at the parameter register, so a number is never buried inside a rule. Below the rows, the rule is restated in plain English, because a supervisor approving a change should read English rather than a form. Industry practice consulted first: the documented rule builder pattern is a list of smart mini-forms that change with the rule type, with a single match-all or match-any control; spreadsheet-shaped editors are what non-technical authors are given elsewhere, but our twenty-two rules watch different feeds and would leave most cells empty. General-industry patterns, not client measurements.
+
+**VD26. Test before save, and approval after it.** A rule cannot be saved until it has been run against the record: the editor reports how many exceptions it would have raised today and over thirty days, and lists the trips. Saving then sends the rule to a supervisor for approval, which is the workflow to confirm in workshop W4. Next phase: backtesting proper, the same run over three months and over the last ten exceptions of the type, showing what the options and the recommendation would have been each time and what the coordinator actually did.
+
+**VD27. A recommendation is a scored shortlist, and its numbers are computed, not piped.** The recommendation editor is a pool, a set of exclusions, and weights that must total 100. The metrics behind it (on-time arrival, on-time delivery, damage and returns, share of trips given) are derived by the tower from milestones, returns records and acceptance events; they are not fields the pipeline delivers, so they belong to the KPI layer and to Advanced Analytics, not to the data contract. Some scores exist in no stored table and are computed only when the exception fires: spreading work across transporters is the worked example. On weights, there is no industry standard. Published examples differ, one common starting structure being on-time delivery 35 per cent, tender acceptance 30, claim rate 20 and committed volume 15, and the sources that publish such sets describe them as illustrative starting points to be set by business impact and agreed with the carrier-facing team. The tower therefore shows the weights and lets the client set them rather than asserting a set. Two refinements worth adopting later: score per lane rather than only per carrier, and weight recent performance more heavily than old.
+
+**VD28. Client-agnostic as a standing aim.** The product should carry as little of one client's shape as possible. Where a client's operation differs, the difference should be something a user sets rather than something CEL rebuilds: thresholds, options, recommendations and their weights are already in that category through the editor. The open case is the milestone sequence itself, where truck queue in matters in Vietnam and did not in the previous scope. A milestone cannot simply be switched on, because something has to record it, so the configurable unit is the pair of a milestone and the feed that carries it. To design, not yet built.
+
+**PB-P19, the worked threshold for the editor.** Truck late against its planned ETA before the gate exception is raised, 4 hours, measured to whichever of truck queue in and truck checked in is recorded first. Written with Pierre on 28 August 2026 as the rule the editor is demonstrated on, used by PB-16. An assumption, not agreed with YCH.
+
+**VD29. Every rule carries an owning role and an audience list.** Who owns an exception and who can see it are properties of the rule, set once and inherited by every exception it raises. The owner is a role, not a person, so a rule survives a leaver: control tower coordinator, warehouse supervisor at the site, transport supervisor or transport planner. Beside it sits an escalation, to a second role after a number of minutes unopened. Visibility is a list of audiences, each marked internal or external, and every rule starts internal: an exception a transporter can read changes what a coordinator will write in it, so external visibility is a deliberate choice per rule. Rules a transporter must act on are the exceptions to that default. Industry practice consulted first: role hierarchies bolted on after the wireframes are approved are a common cause of enterprise applications failing adoption, and roles, permissions and approval chains are information architecture to settle before screens are drawn. General-industry patterns, not client measurements. The roles and audiences themselves belong in an administration screen, not built in this version, where they are defined once for the whole tower.
+
+**VD30. The Playbook page measures the operation, not our progress.** The tiles are exceptions raised in 30 days, share closed inside the decision deadline, median time from raised to decided, and the type that fires most. How much of the playbook is written, and how many thresholds are still assumptions, is a Blueprint fact and now sits in one line under the page title, removable at go-live. The two tables are one: every rule in a single list grouped by journey stage, with columns for what it raises, what it watches, the owning role, the audiences, whether options are prefilled and how often it fired. Written and unwritten rules are the same object at different maturity, and a stage where nothing is written now stands out.
+
+**VD31. One list, two views, and the panel is the editor.** The same page switches between by rule and by parameter. From a rule, the thresholds it uses are chips that open the parameter; from a parameter, the panel lists the rules that use it. Neither is a second table. Reading a rule and changing it are the same task, so the rule panel is the editor: a header carrying the code, the stage, the exception, the owning role and the firing count, then five tabs, Trigger, Ownership, Options, Recommendation and Test. The Open the editor button is gone.
+
 **New parameters, both assumptions.** PB-P15, warning when a truck stands between queue in and checked in for more than 45 minutes. PB-P16, exception at 180 minutes. They join the parameter table alongside PB-P9 to PB-P14 and are workshop-movable like the rest. Both measure the yard wait, which is now a sequenced queue under VD6, so a truck exceeding PB-P15 while holding queue number Q1 is a different signal from one exceeding it at Q6: the first says the gate is blocked, the second says the queue is simply long.
 
 ## V6. Exceptions and KPIs
@@ -183,7 +250,7 @@ Retired or re-opened: the parent file's site facts and capacities (its C1 and C1
 The question list for the next YCH meeting. Everything V2 to V6 assumes is asked here.
 
 Network and sites
-1. Which SPVB sites are in the scope YCH operates: all six plants (Hoc Mon, Can Tho, Quang Nam, Bac Ninh, Dong Nai, Tay Ninh) or a subset? Which warehouses does YCH run for SPVB: in-plant, offsite, both? Is the Thuan An DistriPark part of this scope?
+1. Answered in part at the scoping meeting (V10): three YCH-operated, SPVB-exclusive warehouses, DOP and OPMT / Sóng Thần in Ho Chi Minh City and one in Bắc Ninh, with one HCM warehouse first. Still open: which HCM warehouse is first, and which SPVB plants feed each warehouse.
 2. Is there an in-plant master DC plus offsite DC pattern, or a different structure? Who owns the staging floor and loading at each site?
 3. Docks and staging lanes per site, stated rather than assumed.
 
