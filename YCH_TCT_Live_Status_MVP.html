@@ -2,6 +2,8 @@
 <!--
   Section map (line numbers; re-check with `grep -n` after edits that add/remove lines above a target).
   Keep this map in sync when structure changes; inspect only the range you need, not the whole file.
+  NOTE: this map has drifted from the file (file is 2797 lines, map's last range ends at L2570); a
+  full re-numbering pass is owed as its own task, separate from any single feature edit.
 
   L43-719   <style> block (all CSS)
   L721-921  <body> markup
@@ -2010,7 +2012,17 @@
     }
 
     function tileLayer() {
-      return L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+      // CARTO now requires an API key on the basemap tile URL. DEFAULT_CARTO_KEY below is the
+      // team key shared in the ATOM Slack channel, 2026-08-31, explicitly for shared/free-tier
+      // reuse; it is rate-limited (5M tiles/month) and grants no access beyond basemap tiles.
+      // Override it per browser without editing this file: localStorage.setItem("cartoApiKey",
+      // "YOUR_KEY") in devtools. Request your own key (free, instant, domain-scoped) at
+      // https://carto.com/basemaps/apikey if this shared one is rate-limited or revoked.
+      const DEFAULT_CARTO_KEY = "cb1_29zc_1_2cc1ae4f1049f18e7cdcbd13";
+      let cartoKey = DEFAULT_CARTO_KEY;
+      try { cartoKey = localStorage.getItem("cartoApiKey") || DEFAULT_CARTO_KEY; } catch (e) {}
+      const tileUrl = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" + (cartoKey ? "?key=" + encodeURIComponent(cartoKey) : "");
+      return L.tileLayer(tileUrl, {
         maxZoom: 20,
         subdomains: "abcd",
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
