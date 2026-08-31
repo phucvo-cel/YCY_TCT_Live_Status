@@ -3,33 +3,37 @@
   Section map (line numbers; re-check with `grep -n` after edits that add/remove lines above a target).
   Keep this map in sync when structure changes; inspect only the range you need, not the whole file.
 
-  L34-697   <style> block (all CSS)
-  L702-876  <body> markup
-    L704-726   topbar header, incl. the role-switch (Coordinator / Customer view)
-    L750-772   metric-grid summary section (repurposed for exception counts on
+  L43-719   <style> block (all CSS)
+  L721-921  <body> markup
+    L723-746   topbar header, incl. the role-switch (Coordinator / Customer view)
+    L769-791   metric-grid summary section (repurposed for exception counts on
                the Exceptions perspective, see updateExceptionMetrics)
-    L773-835   entity-list panel: perspective switch (Trips / Orders /
+    L792-857   entity-list panel: perspective switch (Trips / Orders /
                Exceptions), journey-stage chips, table and network views
-    L840-873   detail drawer: Journey, prominent map, Trip order list and
+               (incl. the lane-list-header search box on the Network view's
+               Active trips/orders sidebar, L843-848)
+    L866-919   detail drawer: Journey, prominent map, Trip order list and
                Exception history
-  L899-2472 <script> block
-    L900-1238  synthetic data and trip generation: Vietnam/SPVB network
-               (orders array and generatedRouteTemplates, L911-1084),
+  L923-2570 <script> block
+    L935-1292 synthetic data and trip generation: Vietnam/SPVB network
+               (orders array and generatedRouteTemplates, L935-1084),
                multiLegCases (STO/SO multi-leg cases plus the frozen VN-TR-2214
-               worked example, L1117-1237), and buildTrips
-    L1240-1372 shared state and utilities, incl. allExceptionEntries (the
+               worked example, L1162-1291), and buildTrips
+    L1294-1420 shared state and utilities, incl. allExceptionEntries (the
                flattened per-exception list behind the Exceptions perspective)
-    L1441-1533 table rendering and filtering: filteredEntities/renderTable for
+    L1489-1580 table rendering and filtering: filteredEntities/renderTable for
                Trips and Orders, filteredExceptionEntries/renderExceptionsTable
                and updateExceptionMetrics for the Exceptions perspective
-    L1727-2185 map rendering (detail and network)
-    L2186-2340 drawer open/close and journey population, incl. legDestination
+    L1774-2233 map rendering (detail and network), incl. renderNetwork
+               (L2203) which also populates the lane-list sidebar
+    L2234-2397 drawer open/close and journey population, incl. legDestination
                and deliveredEnRoute handling, the 9-milestone coordinator
                list vs. spvbJourneyMilestones' 6-milestone customer list, and
                exceptionHistoryFor/renderExceptionHistory (the drawer's own
                Exception history card, distinct from the Exceptions
                perspective's fleet-wide table above)
-    L2341-2472 remaining filters, search, and event wiring
+    L2398-2570 remaining filters, search, and event wiring, incl. the
+               table-search/global-search/lane-search three-way sync
 -->
 <html lang="en">
 <head>
@@ -346,12 +350,12 @@
 
     .secondary-button:hover, .icon-text-button:hover { border-color: #98a7b1; background: var(--surface-soft); }
 
-    .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 18px; }
+    .metric-grid { display: grid; grid-template-columns: repeat(var(--metric-cols, 4), minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
 
     .metric-card {
       position: relative;
-      min-height: 116px;
-      padding: 17px 18px;
+      min-height: 88px;
+      padding: 13px 16px;
       border: 1px solid var(--border);
       border-radius: var(--radius);
       background: white;
@@ -362,9 +366,9 @@
     button.metric-card:hover { border-color: #aebac2; transform: translateY(-1px); }
     .metric-card.selected { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12); }
     .metric-label { display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 12px; font-weight: 600; }
-    .metric-icon { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 6px; background: var(--surface-soft); }
-    .metric-value { margin-top: 8px; color: var(--gunmetal); font-family: "Plus Jakarta Sans", sans-serif; font-size: 28px; font-weight: 700; line-height: 1; }
-    .metric-context { margin-top: 9px; color: var(--muted); font-size: 11px; }
+    .metric-icon { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; background: var(--surface-soft); font-size: 13px; }
+    .metric-value { margin-top: 5px; color: var(--gunmetal); font-family: "Plus Jakarta Sans", sans-serif; font-size: 24px; font-weight: 700; line-height: 1; }
+    .metric-context { margin-top: 5px; color: var(--muted); font-size: 11px; }
     .metric-context.good { color: var(--green); }
     .metric-context.warn { color: #a55c00; }
 
@@ -447,7 +451,7 @@
     .result-meta { display: flex; justify-content: space-between; padding: 10px 16px; color: var(--muted); font-size: 11px; }
     .clear-filters { border: 0; color: var(--blue); background: transparent; font-weight: 600; }
 
-    .table-wrap { overflow: auto; max-height: calc(100vh - 410px); min-height: 330px; }
+    .table-wrap { overflow: auto; max-height: calc(100vh - 360px); min-height: 330px; }
     table { width: 100%; border-collapse: separate; border-spacing: 0; white-space: nowrap; font-size: 12px; }
     th { position: sticky; top: 0; z-index: 2; height: 40px; padding: 0 12px; color: #6a7781; background: #f7f9fa; border-bottom: 1px solid var(--border); font-weight: 700; text-align: left; }
     .sort-header { display: inline-flex; align-items: center; gap: 4px; border: 0; padding: 0; background: transparent; font: inherit; font-weight: 700; color: inherit; cursor: pointer; }
@@ -482,9 +486,9 @@
     .entity-count { display: inline-flex; align-items: center; min-height: 22px; padding: 0 7px; border-radius: 11px; color: #2458b9; background: var(--blue-soft); font-size: 10px; font-weight: 700; }
 
     .network-view { display: none; padding: 16px; }
-    .network-view.active { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, .45fr); gap: 16px; }
+    .network-view.active { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 320px); gap: 16px; }
     .network-map-shell { position: relative; min-width: 0; }
-    #network-map { min-height: 520px; border: 1px solid var(--border); border-radius: 6px; background: #e9eef1; }
+    #network-map { height: clamp(520px, 62vh, 720px); border: 1px solid var(--border); border-radius: 6px; background: #e9eef1; }
     .network-selection {
       position: absolute;
       z-index: 500;
@@ -499,17 +503,28 @@
     .network-selection strong { display: block; color: var(--gunmetal); }
     .network-selection span { color: var(--muted); font-size: 10px; }
     .network-selection button { display: block; margin-top: 6px; padding: 0; border: 0; color: var(--blue); background: transparent; font-size: 10px; font-weight: 700; }
-    .lane-list { max-height: 520px; overflow: auto; }
-    .lane-list h3 { margin-bottom: 10px; }
+    .lane-list { max-height: clamp(520px, 62vh, 720px); overflow: auto; }
+    .lane-list-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+    .lane-list h3 { margin-bottom: 0; }
+    .lane-search { position: relative; flex: 1; max-width: 200px; }
+    .lane-search input { width: 100%; height: 32px; padding: 0 10px 0 30px; border: 1px solid var(--border-strong); border-radius: 5px; color: var(--ink); background: white; font-size: 12px; }
+    .lane-search span { position: absolute; left: 10px; top: 8px; color: var(--muted); font-size: 12px; }
     .lane-card { width: 100%; margin-bottom: 8px; border: 1px solid var(--border); border-radius: 6px; background: white; overflow: hidden; }
     .lane-card:hover { border-color: #9dabb4; }
-    .lane-card.selected { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(37, 99, 235, .1); }
+    .lane-card.selected { border-color: var(--blue); border-left: 3px solid var(--blue); background: var(--blue-soft); box-shadow: 0 0 0 2px rgba(37, 99, 235, .15); }
+    .lane-card.selected strong { color: var(--blue); }
+    .lane-card.selected .lane-detail { background: var(--blue-soft); }
     .lane-select { width: 100%; padding: 11px 12px 8px; border: 0; background: transparent; text-align: left; }
     .lane-select:hover { background: #f7fafc; }
     .lane-card strong { display: block; color: var(--gunmetal); }
     .lane-card span { color: var(--muted); font-size: 11px; }
-    .lane-mode { display: inline-flex !important; align-items: center; gap: 5px; float: right; padding: 2px 6px; border-radius: 10px; color: #68520a !important; background: #fff5bf; font-size: 9px !important; font-weight: 700; text-transform: uppercase; }
-    .lane-stats { display: flex; gap: 14px; margin-top: 8px; color: var(--ink); font-size: 11px; font-weight: 600; }
+    /* Fixed columns, not flex (explicit user requirement, 2026-08-28): a
+       flex row sizes each cell to its own text, so "% travelled" of
+       different lengths ("4%" vs "100%") shifted the ETA block sideways
+       card to card. A fixed first column pins the ETA time and date to the
+       same position on every card, top-aligned regardless of which one
+       wraps to two lines. */
+    .lane-stats { display: grid; grid-template-columns: 88px 1fr; align-items: start; margin-top: 8px; color: var(--ink); font-size: 11px; font-weight: 600; }
     .lane-detail { width: 100%; min-height: 32px; border: 0; border-top: 1px solid #edf0f2; color: var(--blue); background: #fafcfd; font-size: 10px; font-weight: 700; }
     .lane-detail:hover { background: var(--blue-soft); }
 
@@ -629,6 +644,23 @@
     .relationship-item span { color: var(--muted); font-size: 11px; }
     .relationship-item button { min-height: 32px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: 5px; color: var(--blue); background: white; font-size: 10px; font-weight: 700; }
 
+    /* Orders carried on this trip expand in place, rather than opening the
+       order's own drawer (explicit user requirement, 2026-08-28): the
+       summary row is the whole relationship-item as a button, and its panel
+       shows the ship-to and SKU lines that used to require leaving the trip. */
+    .order-accordion-item { display: flex; flex-direction: column; }
+    .order-accordion-summary { width: 100%; font: inherit; text-align: left; cursor: pointer; }
+    .order-accordion-summary .accordion-chevron { color: var(--muted); font-size: 12px; transition: transform .15s ease; }
+    .order-accordion-summary[aria-expanded="true"] { border-color: var(--blue); border-radius: 6px 6px 0 0; }
+    .order-accordion-summary[aria-expanded="true"] .accordion-chevron { transform: rotate(180deg); }
+    .order-accordion-panel { margin: -1px 0 8px; padding: 10px 14px 12px; border: 1px solid var(--blue); border-top: 0; border-radius: 0 0 6px 6px; background: #f7fafc; }
+    .order-accordion-detail { display: flex; justify-content: space-between; gap: 12px; padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid var(--border); font-size: 11px; }
+    .order-accordion-detail strong { color: var(--gunmetal); }
+    .order-accordion-detail span { color: var(--muted); }
+    .order-sku-lines { display: grid; gap: 6px; }
+    .order-sku-line { display: flex; justify-content: space-between; gap: 12px; font-size: 11px; color: var(--ink); }
+    .order-sku-line span:last-child { color: var(--muted); font-variant-numeric: tabular-nums; }
+
     .leaflet-container { font-family: "DM Sans", sans-serif; }
     .map-marker { display: grid; place-items: center; width: 28px; height: 28px; border: 3px solid white; border-radius: 50% 50% 50% 0; color: white; box-shadow: 0 2px 7px rgba(30,40,48,.28); transform: rotate(-45deg); }
     .map-marker span { transform: rotate(45deg); font-size: 11px; font-weight: 700; }
@@ -662,6 +694,8 @@
       .view-toggle { margin-left: 0; }
       .map-layout { grid-template-columns: 1fr; }
       #detail-map { height: clamp(500px, 60vh, 680px); }
+      #network-map { height: clamp(480px, 60vh, 680px); }
+      .lane-list { max-height: clamp(480px, 60vh, 680px); }
     }
 
     @media (max-width: 760px) {
@@ -678,15 +712,16 @@
       .perspective-row { align-items: flex-start; flex-direction: column; }
       .header-meta { width: 100%; margin-left: 0; justify-content: space-between; }
       .metric-grid { gap: 10px; }
-      .metric-card { min-height: 104px; padding: 14px; }
-      .metric-value { font-size: 24px; }
+      .metric-card { min-height: 84px; padding: 12px; }
+      .metric-value { font-size: 22px; }
       .toolbar { align-items: stretch; }
       .table-search { flex-basis: 100%; max-width: none; }
       .select-control { flex: 1; min-width: 120px; }
       .view-toggle { width: 100%; }
       .view-toggle button { flex: 1; min-height: 38px; }
       .network-view.active { grid-template-columns: 1fr; }
-      #network-map { min-height: 380px; }
+      #network-map { height: clamp(380px, 58vh, 600px); }
+      .lane-list { max-height: clamp(380px, 58vh, 600px); }
       .detail-drawer { width: 100vw; }
       .drawer-header { padding: 14px; }
       .drawer-scroll { padding: 12px 12px 28px; }
@@ -699,7 +734,7 @@
 
     @media (max-width: 460px) {
       .metric-grid { grid-template-columns: 1fr; }
-      .metric-card { min-height: 96px; }
+      .metric-card { min-height: 80px; }
       .freshness { text-align: left; }
       .secondary-button { padding: 0 10px; }
       .perspective-switch { width: 100%; }
@@ -780,6 +815,11 @@
             <div class="metric-value" id="metric-exceptions">0</div>
             <div class="metric-context warn" id="metric-exception-context">Computed or manual position</div>
           </button>
+          <button class="metric-card" type="button" data-metric="pod-completed" id="metric-pod-card" aria-pressed="false">
+            <div class="metric-label"><span class="label-with-explanation"><span>POD Completed</span><span class="explain-marker" tabindex="0" role="button" aria-label="Explain POD completed" aria-describedby="explanation-popover" aria-expanded="false" data-explain="Orders whose proof of delivery has been captured, at any journey stage.">!</span></span><span class="metric-icon" aria-hidden="true">✓</span></div>
+            <div class="metric-value" id="metric-pod-completed">0</div>
+            <div class="metric-context good">Proof of delivery captured</div>
+          </button>
         </section>
 
         <section class="panel" aria-labelledby="entity-list-heading">
@@ -840,7 +880,13 @@
               <div id="network-selection" class="network-selection" aria-live="polite"></div>
             </div>
             <div class="lane-list">
-              <h3 id="lane-list-heading">Active orders</h3>
+              <div class="lane-list-header">
+                <h3 id="lane-list-heading">Active orders</h3>
+                <label class="lane-search">
+                  <span aria-hidden="true">⌕</span>
+                  <input id="lane-search" type="search" placeholder="Search orders or customers" aria-label="Search active orders or customers">
+                </label>
+              </div>
               <div id="lane-list"></div>
             </div>
           </div>
@@ -871,9 +917,9 @@
           <div class="map-card-header">
             <span class="heading-with-explanation"><h3 id="map-heading">Live journey map</h3><span class="explain-marker" tabindex="0" role="button" aria-label="Explain journey map" aria-describedby="explanation-popover" aria-expanded="false" data-explain="The map shows trip-owned route and position data. An order inherits the position of its current trip.">!</span></span>
             <div class="map-legend">
-              <span><i class="legend-line travelled"></i>Observed · solid</span>
-              <span><i class="legend-line estimated"></i>Estimated GPS gap · short dash</span>
-              <span><i class="legend-line remaining"></i>Destination direction · long dash</span>
+              <span><i class="legend-line travelled"></i>Observed</span>
+              <span id="legend-estimated-gap"><i class="legend-line estimated"></i>Estimated GPS gap</span>
+              <span><i class="legend-line remaining"></i>Destination direction</span>
             </div>
           </div>
           <div id="detail-map" aria-label="Interactive CARTO light map showing origin, current position and destination"></div>
@@ -884,7 +930,6 @@
         <div class="relationship-card-header">
           <div>
             <h3 id="trip-orders-heading">Orders carried on this trip</h3>
-            <p>Sales Orders and Stock Transfer Orders carried by the selected trip.</p>
           </div>
           <span class="entity-count" id="trip-orders-count">0 orders</span>
         </div>
@@ -1028,11 +1073,17 @@
     const generatedExceptions = ["Late arrival predicted", "Route deviation", "GPS signal lost", "POD not received", "Truck arrives late at gate"];
     const generatedStageDetails = {
       "Planning": ["Route planned", "Truck confirmed"],
-      "At Origin": ["Truck Checked in", "Pick completed"],
       "In Transit": ["In transit", "Arrived at Ship-to"],
       "At Destination": ["Arrived at Ship-to", "POD Completed"],
       "Return": ["Return Order Received", "Return intake pending"]
     };
+    // At Origin alternates between two milestone pairs (explicit user
+    // requirement, 2026-08-28) so generated data actually exercises Truck
+    // Queue in, live for this scope since VD5, and not just the hand-authored
+    // records; a flat two-element pair (as every other stage above still
+    // uses) would only ever pick the same two milestones for every
+    // generated "At Origin" order.
+    const generatedAtOriginPairs = [["Truck Queue in", "Truck Checked in"], ["Truck Checked in", "Pick completed"]];
 
     function interpolatePosition(from, to, progress, jitter) {
       const ratio = progress / 100;
@@ -1051,7 +1102,7 @@
       const progress = stage === "Planning" || stage === "Return" ? 0 : stage === "At Origin" ? 3 : stage === "At Destination" ? 100 : 24 + (sequence * 13) % 67;
       const jitter = ((sequence % 7) - 3) * .0035;
       const currentCoord = interpolatePosition(originCoord, destinationCoord, progress, jitter);
-      const [current, next] = generatedStageDetails[stage];
+      const [current, next] = stage === "At Origin" ? generatedAtOriginPairs[sequence % 2] : generatedStageDetails[stage];
       const sourceCycle = sequence % 10;
       const source = sourceCycle < 6 ? "Observed" : sourceCycle < 9 ? "Computed" : "Manual";
       const hasException = sequence % 4 === 0;
@@ -1277,6 +1328,27 @@
     ];
     orders.push(...multiLegCases);
 
+    /* SKU lines for the trip drawer's order accordion (explicit user
+       requirement, 2026-08-28): every order carries 1 to 3 illustrative line
+       items drawn from the four-SKU catalogue in KB/CT_TCT_SPVB_Working_File_v7.md
+       V4 (Pepsi 390ml PET, 7Up 320ml can, Sting 330ml PET, Aquafina 500ml,
+       all case of 24), deterministically from the order's own index so the
+       same order always shows the same lines. Quantities are Invented,
+       exactly like every other illustrative figure in this mockup. */
+    const skuCatalog = [
+      { sku: "SPVB-PEP390", product: "Pepsi 390ml PET, case of 24" },
+      { sku: "SPVB-7UP320", product: "7Up 320ml can, case of 24" },
+      { sku: "SPVB-STG330", product: "Sting 330ml PET, case of 24" },
+      { sku: "SPVB-AQF500", product: "Aquafina 500ml, case of 24" }
+    ];
+    orders.forEach((order, index) => {
+      const lineCount = 1 + (index % 3);
+      order.skuLines = Array.from({ length: lineCount }, (_, lineIndex) => ({
+        ...skuCatalog[(index + lineIndex) % skuCatalog.length],
+        cases: 8 + ((index * 11 + lineIndex * 17) % 92)
+      }));
+    });
+
     function buildTrips() {
       const grouped = new Map();
       orders.forEach(order => {
@@ -1379,6 +1451,14 @@
       "return intake pending": "POD completed"
     };
     function toSpvbMilestone(current) { return spvbMilestoneMap[String(current).toLowerCase()] || current; }
+    /* Status column for the customer role's Orders table (explicit user
+       requirement, 2026-08-28): sorts by the order's actual position along
+       the six customer-visible milestones, not alphabetically, so "Order
+       received" sorts before "In transit" the way it should. */
+    function spvbMilestoneRank(entity) {
+      const rank = spvbJourneyMilestones.indexOf(toSpvbMilestone(entity.current));
+      return rank === -1 ? spvbJourneyMilestones.length : rank;
+    }
 
     const state = { perspective: "trips", role: "coordinator", stage: "All", source: "All", exception: "All", query: "", metric: "all", view: "journey", sortKey: null, sortDirection: "asc" };
     let detailMap;
@@ -1395,6 +1475,7 @@
 
     const els = {
       body: document.getElementById("orders-body"), search: document.getElementById("table-search"), globalSearch: document.getElementById("global-search"),
+      laneSearch: document.getElementById("lane-search"),
       source: document.getElementById("source-filter"), exception: document.getElementById("exception-filter"),
       empty: document.getElementById("empty-state"), journey: document.getElementById("journey-view"),
       network: document.getElementById("network-view"), drawer: document.getElementById("detail-drawer"), backdrop: document.getElementById("drawer-backdrop")
@@ -1495,7 +1576,8 @@
       { key: "route", label: "Route", value: entity => entity.route },
       { key: "eta", label: "ETA", value: entity => sortableMinutes(entity.eta) },
       { key: "source", label: "Position source", value: entity => entity.source },
-      { key: "exception", label: "Exception", value: entity => exceptionSortRank(entity, true) }
+      { key: "exception", label: "Exception", value: entity => exceptionSortRank(entity, true) },
+      { key: "status", label: "Status", value: entity => spvbMilestoneRank(entity) }
     ];
     const TRIP_COLUMNS = [
       { key: "trip", label: "Trip", value: entity => entity.trip },
@@ -1552,7 +1634,8 @@
           || (state.metric === "late" && entity.stage === "In Transit" && entity.varianceMin > 30)
           || (state.metric === "attention" && (state.perspective === "trips"
             ? entity.stage === "In Transit" && entity.source !== "Observed"
-            : entity.stage === "At Destination" && entity.current !== "POD Completed"));
+            : entity.stage === "At Destination" && entity.current !== "POD Completed"))
+          || (state.metric === "pod-completed" && entity.current === "POD Completed");
         const status = latestExceptionStatus(entity, state.perspective === "orders");
         return metricMatch
           && matchesJourneyStage(entity)
@@ -1563,22 +1646,71 @@
       return applySort(filtered, state.perspective === "orders" ? ORDER_COLUMNS : TRIP_COLUMNS);
     }
 
+    /* Orders table row, one per trip on the order's journey (explicit user
+       requirement, 2026-08-28): an order that has ridden more than one trip
+       (order.tripJourney.length > 1, LS-D029's through-orders and the
+       generic hasPreviousTrip case) used to collapse to one row with a
+       "2 linked trips" note. It now renders one row per tripJourney entry
+       instead, all sharing the same Order cell, each showing that leg's own
+       trip and route. `leg` is null for a single-trip order (unchanged
+       behaviour); otherwise it is one entry of entity.tripJourney, and
+       `isPastLeg` (every entry except the one marked "Current") drops ETA,
+       Position source and Exception in favour of a plain Completed badge,
+       since those are only tracked for the trip currently carrying the
+       order, not for legs already finished. */
+    function orderRowHtml(entity, leg, isSpvb) {
+      const isPastLeg = !!leg && leg.status !== "Current";
+      const tripId = leg ? leg.trip : entity.trip;
+      const route = leg ? leg.route : entity.route;
+      const routeNote = isPastLeg
+        ? ""
+        : entity.legDestination
+        ? `<span class="subtext">Current trip ends at ${escapeHtml(entity.legDestination)}, then continues to ${escapeHtml(entity.destination)}</span>`
+        : entity.deliveredEnRoute
+        ? `<span class="subtext">Delivered at an earlier stop; the trip continues</span>`
+        : "";
+      return `
+        <tr tabindex="0" data-entity="${escapeHtml(entity.order)}" aria-label="Open order ${escapeHtml(entity.order)} detail">
+          <td><span class="order-link">${escapeHtml(entity.order)}</span></td>
+          <td><span class="linked-entity">${escapeHtml(tripId)}</span>${isPastLeg ? `<span class="subtext">Earlier trip on this order's journey</span>` : ""}</td>
+          <td><strong>${escapeHtml(entity.destination)}</strong><span class="channel-badge">${escapeHtml(entity.channel)}</span></td>
+          <td>${escapeHtml(route)}${routeNote}</td>
+          ${isPastLeg ? `<td><span class="badge gray">Completed</span></td>` : `<td>${etaCell(entity)}</td>`}
+          ${isSpvb ? "" : isPastLeg
+            ? `<td><span class="none">Not tracked for a finished leg</span></td>`
+            : `<td><span class="badge ${sourceClass(entity.source)}">${escapeHtml(entity.source)}</span><span class="subtext">Inherited from ${escapeHtml(entity.trip)}</span></td>`}
+          ${isSpvb ? "" : isPastLeg
+            ? `<td class="exception-cell"><span class="none">Not tracked for a finished leg</span></td>`
+            : `<td class="exception-cell">${exceptionCell(entity, true)}</td>`}
+          ${isSpvb
+            ? isPastLeg
+              ? `<td><span class="badge gray">Completed</span></td>`
+              : `<td><span class="badge ${entity.stage === "In Transit" ? "blue" : entity.stage === "At Destination" ? "green" : "gray"}">${escapeHtml(toSpvbMilestone(entity.current))}</span></td>`
+            : ""}
+        </tr>`;
+    }
+
     function renderTable() {
       if (state.perspective === "exceptions") { renderExceptionsTable(); return; }
       const filtered = filteredEntities();
       const isOrders = state.perspective === "orders";
-      document.getElementById("entity-table-head").innerHTML = (isOrders ? ORDER_COLUMNS : TRIP_COLUMNS).map(sortableHeaderCell).join("");
+      // Exception and Position source detail are internal, hidden from the
+      // customer role (LS-D040, LS-D041): both columns are dropped from the
+      // Orders header and their <td>s skipped in each row. The customer role
+      // gains its own Status column instead (LS-D045), showing the
+      // customer-visible milestone (toSpvbMilestone) in place of the two.
+      // None of this mutates ORDER_COLUMNS itself, so sorting logic
+      // (applySort, always given the full column list) is unaffected even
+      // though the rendered column set differs by role.
+      const isSpvb = state.role === "spvb";
+      const orderColumns = isSpvb
+        ? ORDER_COLUMNS.filter(column => column.key !== "exception" && column.key !== "source")
+        : ORDER_COLUMNS.filter(column => column.key !== "status");
+      document.getElementById("entity-table-head").innerHTML = (isOrders ? orderColumns : TRIP_COLUMNS).map(sortableHeaderCell).join("");
       bindSortHeaders();
-      els.body.innerHTML = filtered.map(entity => isOrders ? `
-        <tr tabindex="0" data-entity="${escapeHtml(entity.order)}" aria-label="Open order ${escapeHtml(entity.order)} detail">
-          <td><span class="order-link">${escapeHtml(entity.order)}</span></td>
-          <td><span class="linked-entity">${escapeHtml(entity.trip)}</span>${entity.tripJourney.length > 1 ? `<span class="subtext">${entity.tripJourney.length} linked trips</span>` : ""}</td>
-          <td><strong>${escapeHtml(entity.destination)}</strong><span class="channel-badge">${escapeHtml(entity.channel)}</span></td>
-          <td>${escapeHtml(entity.route)}${entity.legDestination ? `<span class="subtext">Current trip ends at ${escapeHtml(entity.legDestination)}, then continues to ${escapeHtml(entity.destination)}</span>` : entity.deliveredEnRoute ? `<span class="subtext">Delivered at an earlier stop; the trip continues</span>` : ""}</td>
-          <td>${etaCell(entity)}</td>
-          <td><span class="badge ${sourceClass(entity.source)}">${escapeHtml(entity.source)}</span><span class="subtext">Inherited from ${escapeHtml(entity.trip)}</span></td>
-          <td class="exception-cell">${exceptionCell(entity, true)}</td>
-        </tr>` : `
+      els.body.innerHTML = isOrders
+        ? filtered.flatMap(entity => entity.tripJourney.length > 1 ? entity.tripJourney.map(leg => orderRowHtml(entity, leg, isSpvb)) : [orderRowHtml(entity, null, isSpvb)]).join("")
+        : filtered.map(entity => `
         <tr tabindex="0" data-entity="${escapeHtml(entity.trip)}" aria-label="Open trip ${escapeHtml(entity.trip)} detail">
           <td><span class="order-link">${escapeHtml(entity.trip)}</span><span class="subtext">${escapeHtml(entity.route)}</span></td>
           <td><span class="entity-count">${entity.orderCount} order${entity.orderCount === 1 ? "" : "s"}</span><span class="subtext">${escapeHtml(entity.orderIds.slice(0, 3).join(" · "))}${entity.orderCount > 3 ? ` · +${entity.orderCount - 3}` : ""}</span></td>
@@ -1699,6 +1831,10 @@
       document.getElementById("metric-secondary-context").textContent = isOrders ? "Unique affected orders" : "Trips with at least one open exception";
       document.getElementById("metric-position-context").textContent = "ETA is more than 30 min after plan";
       document.getElementById("metric-exception-context").textContent = isOrders ? "Arrived orders without completed POD" : `${computed} computed · ${manual} manual`;
+      // POD Completed is Orders-only (explicit user requirement, 2026-08-28);
+      // the card itself is hidden for Trips/Exceptions by setPerspective, so
+      // this count is never shown when it would not apply.
+      document.getElementById("metric-pod-completed").textContent = isOrders ? entities.filter(entity => entity.current === "POD Completed").length : 0;
       const explanations = isOrders ? [
         ["Explain active orders", "Orders received but not yet closed by completed POD."],
         ["Explain orders with open exceptions", "Each order is counted once when it has at least one open exception."],
@@ -1724,13 +1860,32 @@
       document.getElementById("count-destination").textContent = entities.filter(entity => entity.stage === "At Destination").length;
     }
 
+    /* The KPI row's column count adjusts to however many cards are actually
+       visible (explicit user requirement, 2026-08-28, when the POD Completed
+       card made a 5th possible count alongside the existing 4): a fixed
+       4-column CSS rule left a gap whenever a card was hidden (Trips has no
+       POD Completed card; Customer view has no "open exceptions" card).
+       Only the base (desktop) rule reads --metric-cols; the two mobile
+       breakpoints hard-code their own column counts and are unaffected. */
+    function updateMetricGridColumns() {
+      const grid = document.querySelector(".metric-grid");
+      const visible = Array.from(grid.querySelectorAll(".metric-card")).filter(card => card.style.display !== "none").length;
+      grid.style.setProperty("--metric-cols", visible);
+    }
+
     function configureJourneyStages(isOrders) {
+      // The customer role reads its own milestone vocabulary (spvbJourneyMilestones,
+      // toSpvbMilestone), which starts at "Order received" rather than the
+      // coordinator's internal "Planning" (explicit user decision, 2026-08-28).
+      // Only the chip's displayed text changes; its filter value (data-stage)
+      // stays "Planning" so filteredEntities' stage matching is unaffected.
+      const isSpvb = state.role === "spvb";
       const planningButton = document.getElementById("stage-planning-button");
       const originButton = document.getElementById("stage-origin-button");
       const destinationButton = document.getElementById("stage-destination-button");
       planningButton.dataset.stage = isOrders ? "Planning" : "Awaiting Dispatch";
       destinationButton.dataset.stage = "At Destination";
-      setText("stage-planning-label", isOrders ? "Planning" : "Awaiting Dispatch");
+      setText("stage-planning-label", isOrders ? (isSpvb ? "Order received" : "Planning") : "Awaiting Dispatch");
       setText("stage-destination-label", "At Destination");
       originButton.style.display = isOrders ? "inline-flex" : "none";
     }
@@ -1756,6 +1911,13 @@
       document.querySelector(".view-toggle").style.display = isExceptions ? "none" : "";
       els.source.style.display = isExceptions ? "none" : "";
       document.querySelectorAll(".metric-card").forEach(card => { card.classList.remove("selected"); card.setAttribute("aria-pressed", "false"); });
+      // The POD Completed KPI only applies to Orders (explicit user
+      // requirement, 2026-08-28): a trip's own POD completion is not tracked
+      // the same way, since a trip can carry several orders each with their
+      // own POD. Placed before the isExceptions early return so it is
+      // correctly hidden for both Trips and Exceptions.
+      document.getElementById("metric-pod-card").style.display = isOrders ? "" : "none";
+      updateMetricGridColumns();
 
       if (isExceptions) {
         document.getElementById("entity-list-heading").textContent = "All exceptions";
@@ -1775,6 +1937,8 @@
       document.getElementById("lane-list-heading").textContent = isOrders ? "Active orders" : "Active trips";
       els.search.placeholder = isOrders ? "Search orders or customers" : "Search trips, orders or ship-tos";
       els.search.setAttribute("aria-label", isOrders ? "Search active orders or customers" : "Search active trips, orders or ship-tos");
+      els.laneSearch.placeholder = els.search.placeholder;
+      els.laneSearch.setAttribute("aria-label", els.search.getAttribute("aria-label"));
       document.getElementById("empty-title").textContent = `No active ${isOrders ? "orders" : "trips"} match these filters`;
       document.getElementById("empty-copy").textContent = `Clear one or more filters to restore the ${isOrders ? "order" : "trip"} list.`;
       configureJourneyStages(isOrders);
@@ -1799,6 +1963,37 @@
       document.querySelector(".perspective-switch").style.display = isSpvb ? "none" : "";
       if (els.drawer.classList.contains("open")) closeDrawer();
       if (isSpvb) setPerspective("orders");
+      // Exception and Position source detail are internal (explicit user
+      // decisions, 2026-08-28): the customer role hides the exception and
+      // source filters, the "open exceptions" KPI card (metric-grid column
+      // count adjusts itself via updateMetricGridColumns to close the gap),
+      // the Exception and Position source table columns (renderTable), the
+      // map's red exception dot (networkIcon), and the drawer's Exception
+      // history card (openOrderDrawer/openTripDrawer). A stale exception/
+      // source filter or metric selection is cleared so it cannot keep
+      // silently filtering the list while its own control is hidden. This
+      // block runs after setPerspective, whose own unconditional els.source
+      // visibility reset would otherwise clobber the hide below.
+      els.exception.style.display = isSpvb ? "none" : "";
+      els.source.style.display = isSpvb ? "none" : "";
+      document.querySelector('.metric-card[data-metric="exceptions"]').style.display = isSpvb ? "none" : "";
+      updateMetricGridColumns();
+      // The estimated-GPS-gap map legend entry is hidden alongside it
+      // (routeDisplaySegments forces hasEstimatedGap false for this role, so
+      // the segment itself never draws either).
+      document.getElementById("legend-estimated-gap").style.display = isSpvb ? "none" : "";
+      if (isSpvb) {
+        state.exception = "All"; els.exception.value = "All";
+        state.source = "All"; els.source.value = "All";
+        if (state.metric === "exceptions") state.metric = "all";
+      }
+      // Re-run regardless of direction: when isSpvb this duplicates the call
+      // already made via setPerspective("orders") above (harmless, idempotent),
+      // but switching back to Coordinator while still in the Orders
+      // perspective needs its own refresh, since nothing else forces one, or
+      // the "Planning" chip stays stuck reading "Order received".
+      configureJourneyStages(state.perspective === "orders");
+      renderTable();
     }
 
     function setView(view) {
@@ -1827,7 +2022,7 @@
     }
 
     function networkIcon(entity, selected) {
-      const alert = entity.exception === "None" ? "" : '<span class="fleet-alert"></span>';
+      const alert = (entity.exception === "None" || state.role === "spvb") ? "" : '<span class="fleet-alert"></span>';
       const truckIcon = `<svg class="fleet-marker-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h10v9h-10z"/><path d="M13.5 10h4l3 3.5v2h-7z"/><path d="M17.5 10v3.5h3"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17.5" cy="17.5" r="1.8"/><path d="M8.8 17.5h6.9"/></svg>`;
       const shipIcon = `<svg class="fleet-marker-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11h14l-2.2 7H7.2z"/><path d="M8 11V7h8v4"/><path d="M10 7V4h4v3"/><path d="M3.5 20c1.2.8 2.4.8 3.6 0 1.2.8 2.4.8 3.6 0 1.2.8 2.4.8 3.6 0 1.2.8 2.4.8 3.6 0"/></svg>`;
       const symbol = entity.mapMode === "Ship" ? shipIcon : truckIcon;
@@ -1901,7 +2096,12 @@
     }
 
     function routeDisplaySegments(entity, route) {
+      // The customer role never sees the estimated-GPS-gap distinction
+      // (explicit user decision, 2026-08-28): its map draws the whole
+      // travelled path as plain Observed, the same simplification already
+      // applied to the Position source column and filter (LS-D041).
       const hasEstimatedGap =
+        state.role !== "spvb" &&
         entity.source === "Computed" &&
         entity.stage === "In Transit" &&
         route.travelled.length > 1;
@@ -2191,16 +2391,27 @@
         selectedNetworkRoute = null;
       }
       const list = document.getElementById("lane-list");
-      list.innerHTML = filtered.length ? filtered.map(entity => `
+      // Selecting a trip/order on the map brings its card to the top of this
+      // list (explicit user requirement, 2026-08-28), so it is visible without
+      // scrolling; selectedIndex only reorders this rendered list, never the
+      // underlying `filtered` array the map markers below are drawn from.
+      let listEntities = filtered;
+      if (selectedNetworkEntityId) {
+        const selectedIndex = filtered.findIndex(entity => entityKey(entity) === selectedNetworkEntityId);
+        if (selectedIndex > 0) {
+          listEntities = [filtered[selectedIndex], ...filtered.slice(0, selectedIndex), ...filtered.slice(selectedIndex + 1)];
+        }
+      }
+      list.innerHTML = listEntities.length ? listEntities.map(entity => `
         <div class="lane-card ${entityKey(entity) === selectedNetworkEntityId ? "selected" : ""}">
           <button class="lane-select" type="button" data-entity="${escapeHtml(entityKey(entity))}" aria-pressed="${entityKey(entity) === selectedNetworkEntityId}">
-            <span class="lane-mode">${escapeHtml(entity.mapMode)}</span>
             <strong>${escapeHtml(entity.route)}</strong>
             <span>${escapeHtml(isOrders ? entity.order : entity.trip)} · ${isOrders ? `${entity.tripJourney.length} linked trip${entity.tripJourney.length === 1 ? "" : "s"}` : `${entity.orderCount} order${entity.orderCount === 1 ? "" : "s"} carried`}</span>
             <div class="lane-stats"><span>${entity.progress}% travelled</span><span>${etaCell(entity)}</span></div>
           </button>
           <button class="lane-detail" type="button" data-entity="${escapeHtml(entityKey(entity))}">Open ${isOrders ? "order" : "trip"} detail</button>
         </div>`).join("") : `<div class="empty-state visible"><strong>No ${isOrders ? "orders" : "trips"} match</strong><span>Clear filters to restore the network.</span></div>`;
+      if (selectedNetworkEntityId) list.scrollTop = 0;
       list.querySelectorAll(".lane-select").forEach(button => button.addEventListener("click", () => selectNetworkEntity(button.dataset.entity)));
       list.querySelectorAll(".lane-detail").forEach(button => button.addEventListener("click", () => {
         if (isOrders) openOrderDrawer(orders.find(order => order.order === button.dataset.entity), button);
@@ -2391,6 +2602,7 @@
         ? `Order journey. This order was delivered at an earlier stop on trip ${order.trip}. The trip continues on to its next stop.`
         : "Order journey. Future milestones show expected times.");
       renderOrderJourney(order);
+      document.getElementById("exception-history-card").hidden = state.role === "spvb";
       renderExceptionHistory(order, true);
       showDrawer(order, trigger);
     }
@@ -2403,11 +2615,40 @@
       const tripOrdersList = document.getElementById("trip-orders-list");
       tripOrdersCard.hidden = false;
       setText("trip-orders-count", `${trip.orderCount} order${trip.orderCount === 1 ? "" : "s"}`);
-      tripOrdersList.innerHTML = trip.orders.map(order => `<div class="relationship-item"><strong>${escapeHtml(order.order)}</strong><span>${escapeHtml(order.customer)}${order.legDestination ? `<span class="subtext">Continues past ${escapeHtml(order.legDestination)}</span>` : order.deliveredEnRoute ? `<span class="subtext">Delivered at an earlier stop</span>` : ""}</span><span><span class="badge ${order.stage === "In Transit" ? "blue" : order.stage === "At Destination" ? "green" : "gray"}">${escapeHtml(order.current)}</span></span><button type="button" data-open-order="${escapeHtml(order.order)}">Open order</button></div>`).join("");
-      tripOrdersList.querySelectorAll("[data-open-order]").forEach(button => button.addEventListener("click", () => openOrderDrawer(orders.find(order => order.order === button.dataset.openOrder), button)));
+      tripOrdersList.innerHTML = trip.orders.map(order => {
+        const legNote = order.legDestination
+          ? `<span class="subtext">Continues past ${escapeHtml(order.legDestination)}</span>`
+          : order.deliveredEnRoute
+          ? `<span class="subtext">Delivered at an earlier stop</span>`
+          : "";
+        const shipToNote = order.customer !== trip.shipTo
+          ? `<span class="subtext">Different ship-to than the trip's primary, ${escapeHtml(trip.shipTo)}</span>`
+          : "";
+        const skuRows = (order.skuLines || []).map(line =>
+          `<div class="order-sku-line"><span>${escapeHtml(line.product)}</span><span>${line.cases} cases</span></div>`
+        ).join("");
+        return `<div class="order-accordion-item">
+          <button type="button" class="order-accordion-summary relationship-item" data-toggle-order="${escapeHtml(order.order)}" aria-expanded="false" aria-controls="order-panel-${escapeHtml(order.order)}">
+            <strong>${escapeHtml(order.order)}</strong>
+            <span>${escapeHtml(order.customer)}${legNote}${shipToNote}</span>
+            <span><span class="badge ${order.stage === "In Transit" ? "blue" : order.stage === "At Destination" ? "green" : "gray"}">${escapeHtml(order.current)}</span></span>
+            <span class="accordion-chevron" aria-hidden="true">⌄</span>
+          </button>
+          <div class="order-accordion-panel" id="order-panel-${escapeHtml(order.order)}" hidden>
+            <div class="order-accordion-detail"><strong>Ship-to</strong><span>${escapeHtml(order.customer)}</span></div>
+            <div class="order-sku-lines">${skuRows}</div>
+          </div>
+        </div>`;
+      }).join("");
+      tripOrdersList.querySelectorAll("[data-toggle-order]").forEach(button => button.addEventListener("click", () => {
+        const expanded = button.getAttribute("aria-expanded") === "true";
+        button.setAttribute("aria-expanded", String(!expanded));
+        document.getElementById(button.getAttribute("aria-controls")).hidden = expanded;
+      }));
       setText("milestone-heading", "Journey");
       setText("milestone-copy", "Trip journey. Future milestones show expected times.");
       renderOrderJourney(trip);
+      document.getElementById("exception-history-card").hidden = state.role === "spvb";
       renderExceptionHistory(trip, false);
       showDrawer(trip, trigger);
     }
@@ -2423,7 +2664,7 @@
     function clearFilters() {
       state.stage = "All"; state.source = "All"; state.exception = "All"; state.query = ""; state.metric = "all";
       state.sortKey = null; state.sortDirection = "asc";
-      els.search.value = ""; els.globalSearch.value = ""; els.source.value = "All"; els.exception.value = "All";
+      els.search.value = ""; els.globalSearch.value = ""; els.laneSearch.value = ""; els.source.value = "All"; els.exception.value = "All";
       setStage("All");
     }
 
@@ -2504,8 +2745,9 @@
     document.getElementById("exceptions-perspective-button").addEventListener("click", () => setPerspective("exceptions"));
     document.getElementById("role-coordinator-button").addEventListener("click", () => setRole("coordinator"));
     document.getElementById("role-spvb-button").addEventListener("click", () => setRole("spvb"));
-    els.search.addEventListener("input", event => { state.query = event.target.value; els.globalSearch.value = event.target.value; renderTable(); });
-    els.globalSearch.addEventListener("input", event => { state.query = event.target.value; els.search.value = event.target.value; renderTable(); });
+    els.search.addEventListener("input", event => { state.query = event.target.value; els.globalSearch.value = event.target.value; els.laneSearch.value = event.target.value; renderTable(); });
+    els.globalSearch.addEventListener("input", event => { state.query = event.target.value; els.search.value = event.target.value; els.laneSearch.value = event.target.value; renderTable(); });
+    els.laneSearch.addEventListener("input", event => { state.query = event.target.value; els.search.value = event.target.value; els.globalSearch.value = event.target.value; renderTable(); });
     els.source.addEventListener("change", event => { state.source = event.target.value; renderTable(); });
     els.exception.addEventListener("change", event => { state.exception = event.target.value; renderTable(); });
     document.getElementById("clear-filters").addEventListener("click", clearFilters);
