@@ -3,7 +3,7 @@
 ## Structure and Context Loading
 
 - `Instruction/` contains governing instructions and stable context.
-- `KB/` contains detailed project knowledge.
+- `KB/` contains detailed project knowledge; `KB/Meeting/` holds dated raw notes from meetings and working sessions, before they are distilled into the rest of `KB/` or `Instruction/`.
 - `Skills/` contains reusable workflows, not project facts.
 
 At the start of a chat, after compaction, or after either file changes, read:
@@ -25,6 +25,12 @@ Do not reread unchanged context. Search first and load only the relevant section
 The three `CT_*` files were split from `KB/CT_Working_File_and_Knowledge_Base_v13.md`; the unmodified original is archived at `KB/archive/CT_Working_File_and_Knowledge_Base_v13.md` and is not read in normal work. Each `CT_*` file, and `KB/UI instruction.md`, opens with a `## Contents` list giving a line number for every subsection.
 
 Read a whole KB file only for a full-document review or a genuinely document-wide task. Preserve established filenames.
+
+## Meeting Notes
+
+`KB/Meeting/` holds one folder per date, `YYYY-MM-DD/`, holding one Markdown file per meeting or working session that day: `<short topic>.md`. Each file records what was discussed, in the order it came up: notes, decisions, changes made, and any adjustment suggested but not yet made.
+
+A meeting note is a raw, dated record, not a source of ongoing truth. When something in it should govern future work, fold it into the relevant `KB/` working file (with that file's own dated change log entry) or `Instruction/Project Instruction.md`, and cite the meeting note as the source. Do not delete or rewrite a meeting note afterward; it stays as the historical record, superseded in effect but not in text.
 
 ## Focused Workflow
 
@@ -48,7 +54,7 @@ Do not log explanation-only questions. Distinguish mockup decisions from confirm
 
 ## Source Priority
 
-1. Latest explicit user or project-lead decision.
+1. Latest explicit user or project-lead decision (raw notes for these live in `KB/Meeting/`).
 2. `KB/CEL_YCH_Project_Instructions_v2.md`, then `Instruction/Project Instruction.md`.
 3. `KB/CT_Index.md` and the `CT_*` working files it points to.
 4. Latest approved client-facing or workshop material.
