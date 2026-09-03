@@ -10,41 +10,47 @@
   Section map (line numbers; re-check with `grep -n` after edits that add/remove lines above a target).
   Keep this map in sync when structure changes; inspect only the range you need, not the whole file.
 
-  L61-825   <style> block (all CSS; v0.24 tokens at L62-75, icon-rail sidebar at L272-352)
-  L827-3029 <body> markup
-    L831-859   app-header: brand, live clocks (Hóc Môn/Quy Nhơn), language button,
-               persona picker (topbar), no in-header role-switch or search
-    L860-888   v24-menu: icon-rail sidebar (Live Status, Network, Trips, Dock
+  L67-861   <style> block (all CSS; v0.24 tokens at L68-83, icon-rail sidebar at L308-388)
+  L863-3128 <body> markup
+    L867-898   app-header: brand, live clocks (Hóc Môn/Quy Nhơn), language button,
+               Lana AI button, persona picker (topbar). No in-header role-switch
+               or search; the persona picker drives Coordinator/Customer view.
+    L900-921   lana: the SIMCEL AI copilot panel, cosmetic parity only (no live
+               model wired), matching the master's persona-pick/lana pattern
+    L922-954   v24-menu: icon-rail sidebar (Live Status, Network, Trips, Dock
                operations, Decision threads, Playbook, Continuous improvement,
                Performance), build-tag footer reads v0.24
-    L893-908   page-header: heading, perspective switch (Trips/Orders), and the
-               role-switch (Coordinator/Customer view), moved here from the
-               topbar to match the v0.24 header chrome
-    L917-1017  metric-grid summary section
-    L1019-1077 detail drawer: Journey, prominent map, Trip order list and
+    L955-971   page-header: heading and perspective switch (Trips/Orders); the
+               Coordinator/Customer view switch lives in the persona picker,
+               not here (LS-D057)
+    L972-1073  metric-grid summary section
+    L1074-1132 detail drawer: Journey, prominent map, Trip order list and
                Exception history
-    L1078-1089 exception-drawer: blank placeholder panel (LS-D051)
-  L1090-3011 <script> block
-    L1102-1478 synthetic data and trip generation: Vietnam/SPVB network
-               (orders array L1102, generatedRouteTemplates L1190),
+    L1133-1144 exception-drawer: blank placeholder panel (LS-D051)
+  L1145-3110 <script> block
+    L1157-1533 synthetic data and trip generation: Vietnam/SPVB network
+               (orders array L1157, generatedRouteTemplates L1245),
                multiLegCases (STO/SO multi-leg cases plus the frozen VN-TR-2214
-               worked example, L1335) and multiDropCase (LS-D055, L1478)
-    L1553      buildTrips
-    L1669      els object (shared DOM references), state and utilities follow
-    L1822-2129 table rendering and filtering: filteredEntities/renderTable for
+               worked example, L1390) and multiDropCase (LS-D055, L1533)
+    L1608      buildTrips
+    L1724      els object (shared DOM references)
+    L1739      PERSONAS object and the persona picker/Lana functions
+               (buildPMenu, setPersona, togglePMenu, toggleLana), state and
+               utilities follow
+    L1891-2613 table rendering and filtering: filteredEntities/renderTable for
                Trips and Orders. There is no separate Exceptions perspective
                or aggregation table (removed, LS-D050): a dedicated Exceptions
                page exists outside this mockup, owned by the frontend team.
-    L2518-2794 map rendering (detail and network), incl. renderNetwork (L2518)
+    L2614-2890 map rendering (detail and network), incl. renderNetwork (L2614)
                which also populates the lane-list sidebar
-    L2795-2872 drawer open/close: openOrderDrawer, openTripDrawer,
+    L2891-2968 drawer open/close: openOrderDrawer, openTripDrawer,
                openExceptionPanel, incl. legDestination and deliveredEnRoute
                handling and the 9-milestone coordinator list vs.
                spvbJourneyMilestones' 6-milestone customer list
-    L2930-3011 remaining filters, search, and event wiring; init is deferred
-               one tick (window.setTimeout, L2993) so layout settles before
+    L2969-3110 remaining filters, search, and event wiring; init is deferred
+               one tick (window.setTimeout, L3092) so layout settles before
                the first render
-  L3013-3027 <script> block: live clock (Hóc Môn/Quy Nhơn), updates every 10s
+  L3112-3126 <script> block: live clock (Hóc Môn/Quy Nhơn), updates every 10s
 -->
 <html lang="en">
 <head>
@@ -88,6 +94,8 @@
       --radius: 6px;
       --radius-l: 8px;
       --railw: 50px;
+      --font-display: "Plus Jakarta Sans", "Inter", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      --font-body: "DM Sans", "Plus Jakarta Sans", "Inter", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
     }
 
     /* Core map layout is kept locally so the map stays correctly layered if the CDN stylesheet is delayed. */
@@ -129,7 +137,7 @@
       margin: 0;
       color: var(--ink);
       background: var(--canvas);
-      font-family: "DM Sans", Inter, sans-serif;
+      font-family: var(--font-body);
       font-size: 14px;
       line-height: 1.45;
     }
@@ -206,12 +214,40 @@
     .persona-pick .ptxt b { font-family: var(--font-display); font-size: 11.5px; font-weight: 600; color: #fff; white-space: nowrap; }
     .persona-pick .ptxt span { font-size: 10px; color: rgba(255,255,255,.58); white-space: nowrap; }
 
-    /* Role switch, moved to page header area */
-    .role-switch-group { display: flex; align-items: center; gap: 8px; }
-    .role-switch-label { color: var(--muted); font-size: 11px; font-weight: 600; white-space: nowrap; }
-    .role-switch { display: inline-flex; padding: 3px; border: 1px solid var(--border); border-radius: 7px; background: var(--canvas); }
-    .role-switch button { min-width: 84px; min-height: 28px; padding: 0 10px; border: 0; border-radius: 5px; color: var(--muted); background: transparent; font-size: 12px; font-weight: 700; }
-    .role-switch button.active { color: var(--gunmetal); background: white; box-shadow: 0 1px 3px rgba(36,51,63,.12); }
+    /* Persona switch menu: selecting a persona also drives the Coordinator/
+       Customer view split (setPersona calls setRole). */
+    .pmenu { position: absolute; top: 50px; right: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-pop); min-width: 236px; padding: 5px; display: none; z-index: 1500; }
+    .pmenu.open { display: block; }
+    .pmenu button { display: flex; gap: 9px; align-items: center; width: 100%; background: none; border: none; text-align: left; padding: 8px 9px; border-radius: var(--radius); cursor: pointer; font-family: var(--font-body); }
+    .pmenu button:hover { background: var(--canvas); }
+    .pmenu .pav { width: 24px; height: 24px; border-radius: 50%; background: var(--surface-soft); color: var(--muted); font-size: 10px; font-weight: 700; font-family: var(--font-display); display: flex; align-items: center; justify-content: center; flex: none; }
+    .pmenu b { font-family: var(--font-display); font-size: 12px; color: var(--gunmetal); display: block; }
+    .pmenu span { font-size: 11px; color: var(--muted); }
+    .pmenu .pdiv { height: 1px; background: var(--border); margin: 4px 2px; }
+
+    /* Lana, the SIMCEL AI copilot: cosmetic parity with the master mockup's
+       panel (feature S19). No live model behind it here; see the note in the
+       panel itself. */
+    .lanabtn { width: 32px; height: 32px; border-radius: 50%; overflow: hidden; cursor: pointer; flex: none; border: 1.5px solid rgba(255,255,255,.22); display: flex; align-items: center; justify-content: center; background: var(--violet); }
+    .lanabtn:hover { border-color: var(--amber); }
+    .lana-av { font-family: var(--font-display); font-size: 13px; font-weight: 700; color: #fff; }
+    .lana { position: fixed; top: 0; right: 0; bottom: 0; width: 380px; background: var(--surface); z-index: 1700; display: flex; flex-direction: column; transform: translateX(100%); transition: transform .2s ease; box-shadow: -6px 0 26px rgba(36,51,63,.16); }
+    .lana.open { transform: translateX(0); }
+    .lana .lhead { background: var(--gunmetal); color: #fff; padding: 11px 14px; display: flex; align-items: center; gap: 11px; }
+    .lana .lhead .lava { width: 32px; height: 32px; border-radius: 50%; background: var(--violet); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 700; font-size: 13px; color: #fff; flex: none; }
+    .lana .lhead b { font-family: var(--font-display); font-size: 14px; display: block; line-height: 1.2; }
+    .lana .lhead span { font-size: 11px; color: rgba(255,255,255,.62); }
+    .lana .lhead .x { margin-left: auto; cursor: pointer; color: rgba(255,255,255,.7); font-size: 18px; line-height: 1; }
+    .lana .lbody { flex: 1; overflow-y: auto; padding: 26px 20px; display: flex; flex-direction: column; }
+    .lana .lintro { margin: auto 0; text-align: center; }
+    .lana .lintro .lava-lg { width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 12px; background: var(--violet); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 700; font-size: 22px; color: #fff; }
+    .lana .lintro b { display: block; font-family: var(--font-display); font-size: 15px; color: var(--gunmetal); margin-bottom: 8px; }
+    .lana .lintro p { font-size: 12.5px; color: var(--muted); line-height: 1.55; margin-bottom: 16px; }
+    .lana .lsug { display: block; width: 100%; text-align: center; background: none; border: 1px solid var(--border); border-radius: 999px; padding: 9px 14px; margin-bottom: 9px; font-family: var(--font-body); font-size: 12px; color: var(--gunmetal); cursor: pointer; }
+    .lana .lsug:hover { border-color: var(--border-strong); background: var(--canvas); }
+    .lana .lask { border-top: 1px solid var(--border); padding: 12px 14px; }
+    .lana .lask .box { border: 1px solid var(--border); border-radius: var(--radius); padding: 11px 12px; font-size: 12.5px; color: var(--muted-2); min-height: 52px; }
+    .lana .lask .note { font-size: 10px; color: var(--muted-2); text-align: center; margin-top: 8px; }
 
     .workspace {
       grid-area: main;
@@ -460,17 +496,18 @@
       min-height: 34px;
       padding: 0 11px;
       border: 1px solid var(--border);
-      border-radius: 18px;
-      color: #53626d;
-      background: white;
+      border-radius: var(--radius);
+      color: var(--gunmetal);
+      background: var(--surface);
       white-space: nowrap;
+      font-family: var(--font-display);
       font-size: 12px;
       font-weight: 600;
     }
 
-    .stage-chip:hover { border-color: #9fadb6; }
+    .stage-chip:hover { background: var(--canvas); }
     .stage-chip.active { color: #fff; border-color: var(--gunmetal); background: var(--gunmetal); }
-    .chip-count { min-width: 18px; padding: 0 5px; border-radius: 9px; background: rgba(100, 114, 125, 0.12); font-size: 10px; text-align: center; }
+    .chip-count { min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--surface-soft); color: var(--muted-2); font-weight: 700; font-size: 10.5px; text-align: center; }
     .stage-chip.active .chip-count { background: rgba(255, 255, 255, 0.18); }
 
     .controls-row {
@@ -782,7 +819,6 @@
       .brand-text { display: none; }
       .global-search { width: auto; flex: 1; margin-left: 0; }
       .shortcut, .top-icon { display: none; }
-      .role-switch-label { display: none; }
       .workspace { display: block; }
       .sidebar { display: none; }
       .main { padding: 16px 12px 28px; }
@@ -849,13 +885,39 @@
         <div class="clock" style="opacity:.72">Quy Nhơn <b id="clkQN">00:00</b> ICT</div>
         <div class="spacer"></div>
         <button class="lang-btn">EN</button>
-        <div class="persona-pick">
-          <div class="pav">TL</div>
-          <div class="ptxt"><b>Tuấn L.</b><span>Transport controller</span></div>
+        <span class="lanabtn" id="lana-button" title="Lana, the SIMCEL AI copilot">
+          <span class="lana-av">L</span>
+        </span>
+        <div class="persona-pick" id="persona-pick">
+          <div class="pav" id="pavTop">TL</div>
+          <div class="ptxt"><b id="pnameTop">Tuấn L.</b><span id="proleTop">Control tower coordinator</span></div>
           <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="1.6" stroke-linecap="round"><path d="M2.5 4.5 L6 8 L9.5 4.5"/></svg>
         </div>
+        <div class="pmenu" id="pmenu"></div>
       </div>
     </header>
+
+    <aside class="lana" id="lana" aria-hidden="true">
+      <div class="lhead">
+        <div class="lava">L</div>
+        <span><b>Lana</b><span>SIMCEL AI copilot</span></span>
+        <span class="x" id="lana-close">&times;</span>
+      </div>
+      <div class="lbody">
+        <div class="lintro">
+          <div class="lava-lg">L</div>
+          <b>Hi, I am Lana.</b>
+          <p>Ask me about a trip, an exception or a lane and I will pull the answer from the live record. This preview shows the panel only; the wired answers arrive with the frontend team's build.</p>
+          <button type="button" class="lsug">Which trips are carrying an exception right now?</button>
+          <button type="button" class="lsug">What is the worst-performing lane today?</button>
+          <button type="button" class="lsug">Summarise VN-TR-2214 for me.</button>
+        </div>
+      </div>
+      <div class="lask">
+        <div class="box">Ask Lana about the live status of orders, trips or exceptions.</div>
+        <div class="note">Preview panel, not wired to a live model.</div>
+      </div>
+    </aside>
 
     <div class="v24-menu" id="v24-menu">
       <a class="active" data-tip="Live Status">
@@ -902,13 +964,6 @@
             </div>
           </div>
           <div class="header-meta">
-            <div class="role-switch-group">
-              <span class="role-switch-label">View as</span>
-              <div class="role-switch" role="group" aria-label="View as">
-                <button id="role-coordinator-button" class="active" type="button" aria-pressed="true">Coordinator</button>
-                <button id="role-spvb-button" type="button" aria-pressed="false">Customer view</button>
-              </div>
-            </div>
             <div class="freshness">Snapshot 25 Aug 2026, 14:32</div>
             <button id="refresh-button" class="secondary-button" type="button">↻ Refresh data</button>
           </div>
@@ -1672,8 +1727,22 @@
       source: document.getElementById("source-filter"), exception: document.getElementById("exception-filter"),
       empty: document.getElementById("empty-state"), journey: document.getElementById("journey-view"),
       network: document.getElementById("network-view"), drawer: document.getElementById("detail-drawer"), backdrop: document.getElementById("drawer-backdrop"),
-      exceptionDrawer: document.getElementById("exception-drawer")
+      exceptionDrawer: document.getElementById("exception-drawer"), lana: document.getElementById("lana")
     };
+
+    // Personas shown in the topbar picker (master mockup's persona-pick/pmenu
+    // mechanism). The three YCH personas are internal Coordinator-view
+    // identities; selecting the fourth, SPVB's own contact, switches into
+    // Customer view (the old role-switch's "spvb" role, LS-D040 to LS-D045),
+    // which shows only the order view: no Exception or Position source
+    // columns, no exception detail on the map or in the drawer.
+    const PERSONAS = {
+      tuan:  { id: "tuan",  ini: "TL", name: "Tuấn L.",  role: "Control tower coordinator", view: "coordinator" },
+      hoa:   { id: "hoa",   ini: "HN", name: "Hòa N.",   role: "Warehouse supervisor, DOP", view: "coordinator" },
+      khanh: { id: "khanh", ini: "KP", name: "Khánh P.", role: "Transport supervisor",      view: "coordinator" },
+      mai:   { id: "mai",   ini: "MH", name: "Mai H.",   role: "Logistics coordinator, SPVB", view: "spvb" }
+    };
+    let viewer = "tuan";
 
     function displayValue(value) {
       return String(value).replace(/\s+(WIB|WITA|WIT)\b/g, "");
@@ -2075,10 +2144,9 @@
     function setRole(role) {
       state.role = role;
       const isSpvb = role === "spvb";
-      document.getElementById("role-coordinator-button").classList.toggle("active", !isSpvb);
-      document.getElementById("role-spvb-button").classList.toggle("active", isSpvb);
-      document.getElementById("role-coordinator-button").setAttribute("aria-pressed", String(!isSpvb));
-      document.getElementById("role-spvb-button").setAttribute("aria-pressed", String(isSpvb));
+      // The role switch itself now lives in the persona picker (setPersona);
+      // setRole only applies the resulting view, it no longer owns any
+      // button state.
       // SPVB is a customer-facing role: Orders only, no Trips perspective,
       // and its Journey card uses spvbJourneyMilestones (see renderOrderJourney).
       document.querySelector(".perspective-switch").style.display = isSpvb ? "none" : "";
@@ -2115,6 +2183,34 @@
       // the "Planning" chip stays stuck reading "Order received".
       configureJourneyStages(state.perspective === "orders");
       renderTable();
+    }
+
+    function buildPMenu() {
+      document.getElementById("pmenu").innerHTML = Object.values(PERSONAS).map((persona, index) => {
+        const divider = persona.view === "spvb" && index > 0 ? '<div class="pdiv"></div>' : "";
+        return `${divider}<button type="button" data-persona="${persona.id}"><span class="pav">${persona.ini}</span><span><b>${escapeHtml(persona.name)}</b><span>${escapeHtml(persona.role)}</span></span></button>`;
+      }).join("");
+      document.querySelectorAll("#pmenu button").forEach(button => button.addEventListener("click", () => setPersona(button.dataset.persona)));
+    }
+
+    function setPersona(id) {
+      viewer = id;
+      const persona = PERSONAS[id];
+      document.getElementById("pavTop").textContent = persona.ini;
+      document.getElementById("pnameTop").textContent = persona.name;
+      document.getElementById("proleTop").textContent = persona.role;
+      document.getElementById("pmenu").classList.remove("open");
+      setRole(persona.view);
+    }
+
+    function togglePMenu(event) {
+      event.stopPropagation();
+      document.getElementById("pmenu").classList.toggle("open");
+    }
+
+    function toggleLana() {
+      els.lana.classList.toggle("open");
+      els.lana.setAttribute("aria-hidden", String(!els.lana.classList.contains("open")));
     }
 
     function setView(view) {
@@ -2950,8 +3046,11 @@
     }));
     document.getElementById("orders-perspective-button").addEventListener("click", () => setPerspective("orders"));
     document.getElementById("trips-perspective-button").addEventListener("click", () => setPerspective("trips"));
-    document.getElementById("role-coordinator-button").addEventListener("click", () => setRole("coordinator"));
-    document.getElementById("role-spvb-button").addEventListener("click", () => setRole("spvb"));
+    buildPMenu();
+    document.getElementById("persona-pick").addEventListener("click", togglePMenu);
+    document.addEventListener("click", () => document.getElementById("pmenu").classList.remove("open"));
+    document.getElementById("lana-button").addEventListener("click", toggleLana);
+    document.getElementById("lana-close").addEventListener("click", toggleLana);
     els.search.addEventListener("input", event => { state.query = event.target.value; els.globalSearch.value = event.target.value; els.laneSearch.value = event.target.value; renderTable(); });
     els.globalSearch.addEventListener("input", event => { state.query = event.target.value; els.search.value = event.target.value; els.laneSearch.value = event.target.value; renderTable(); });
     els.laneSearch.addEventListener("input", event => { state.query = event.target.value; els.search.value = event.target.value; els.globalSearch.value = event.target.value; renderTable(); });
