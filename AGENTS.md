@@ -35,14 +35,17 @@ A meeting note is a raw, dated record, not a source of ongoing truth. When somet
 ## Focused Workflow
 
 - For targeted work, inspect only the target and direct dependencies. Start with narrow `rg` searches and normally view no more than 120 surrounding lines.
-- In large HTML files, inspect only the affected element, data, and renderer. `YCH_TCT_Live_Status_MVP.html` opens with an HTML-comment section map (line ranges for CSS, each body panel, and each script region); read that comment before the rest of the file, not instead of it.
+- In large HTML files, inspect only the affected element, data, and renderer. `YCH_TCT_Live_Status_MVP_v0.24.html` opens with an HTML-comment section map (line ranges for CSS, each body panel, and each script region); read that comment before the rest of the file, not instead of it.
+- `UI/` holds a read-only copy of the master mockup, `YCH_TCT_SPVB_vNN.html` (about 1.4 MB), with its own `AGENTS.md`. Never read it whole; follow that file's own rules (search by line range, skip the embedded font block, do not edit it).
 - Batch related edits and validate only changed behavior and files.
 - Skip screenshots for non-layout changes unless requested.
 - Keep updates concise and do not reconfirm context already inspected.
 
 ## Live Status MVP Change Control
 
-For intended changes to `YCH_TCT_Live_Status_MVP.html`:
+`YCH_TCT_Live_Status_MVP_v0.24.html` is the active working file (LS-D056, 2026-09-03): it carries every decision below and matches the master mockup's v0.24 chrome and design tokens (icon-rail navigation, topbar clocks and persona picker), per direction to align this pod's UI/UX with `UI/YCH_TCT_SPVB_v24.html`. `YCH_TCT_Live_Status_MVP.html` is superseded and kept only as historical record; do not edit it further.
+
+For intended changes to `YCH_TCT_Live_Status_MVP_v0.24.html`:
 
 1. Add an `LS-B###` item to `YCH_TCT_Live_Status_MVP_Backlog.md` only when requested work is intentionally deferred for future implementation.
 2. Keep the backlog limited to unimplemented features, requirements, tasks and defects. Refine and reprioritise it as project needs change.
