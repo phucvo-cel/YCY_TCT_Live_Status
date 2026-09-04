@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CEL TCT, ways of working diagrams v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gunmetal:#24333F; --slate:#39505F; --grey:#6E7C87; --grey-2:#8A97A0;
+    --line:#E2E8EC; --line-soft:#EFF3F5; --soft:#F4F7F8; --paper:#FFFFFF; --canvas:#F7F9FA;
+    --persian:#C0392B; --gamboge:#EF9D17; --blue:#385D7F; --blue-50:#EDF3F8; --green:#2F7A4F;
+    --radius:8px; --radius-s:5px;
+    --font-display:"Plus Jakarta Sans","Helvetica Neue",Helvetica,Arial,sans-serif;
+    --font-body:"DM Sans","Helvetica Neue",Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;padding:30px;background:var(--canvas);color:var(--gunmetal);font-family:var(--font-body);}
+  h1{font-family:var(--font-display);font-size:19px;font-weight:700;margin:0 0 4px;}
+  h2{font-family:var(--font-display);font-size:13px;font-weight:700;margin:0 0 3px;}
+  p.sub{margin:0 0 22px;color:var(--grey);font-size:12.5px;}
+  p.csub{margin:0 0 16px;color:var(--grey);font-size:11.5px;}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);
+        padding:20px 22px;margin-bottom:20px;box-shadow:0 1px 2px rgba(36,51,63,.04);}
+  svg{display:block;width:100%;height:auto;}
+  .tb{font-family:"Plus Jakarta Sans",sans-serif;font-size:12px;font-weight:700;fill:var(--gunmetal);}
+  .t{font-family:"DM Sans",sans-serif;font-size:11px;fill:var(--slate);}
+  .ts{font-family:"DM Sans",sans-serif;font-size:10px;fill:var(--grey-2);}
+  .tl{font-family:"Plus Jakarta Sans",sans-serif;font-size:9.5px;font-weight:700;letter-spacing:.4px;fill:var(--grey);}
+  .pil{font-family:"Plus Jakarta Sans",sans-serif;font-size:9px;font-weight:700;letter-spacing:.5px;}
+  .box{fill:var(--paper);stroke:var(--line);stroke-width:1.3;}
+  .boxsoft{fill:var(--soft);stroke:var(--line);stroke-width:1.3;}
+  .arrow{stroke:var(--gunmetal);stroke-width:1.5;fill:none;}
+  .arrowback{stroke:var(--gunmetal);stroke-width:1.5;fill:none;}
+  .arrowdash{stroke:var(--grey-2);stroke-width:1.3;fill:none;stroke-dasharray:5 4;}
+</style>
+</head>
+<body>
+
+<h1>Ways of working, the three flows</h1>
+<p class="sub">CEL, YCH Transport Control Tower, SPVB Vietnam. Companion to the ways of working guide, version 2.</p>
+
+<div class="card">
+<h2>1. Where things live</h2>
+<p class="csub">Pods work in the sub-module folders. Everything shared sits above them.</p>
+<svg viewBox="0 0 820 470" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="m1" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 z" fill="#24333F"/>
+    </marker>
+  </defs>
+
+  <rect x="8" y="8" width="804" height="454" rx="8" fill="#F4F7F8" stroke="#E2E8EC"/>
+  <text x="24" y="30" class="tb">YCH-TCT, shared drive</text>
+
+  <rect x="24" y="44" width="180" height="24" rx="5" class="box"/><text x="36" y="60" class="t">00. AI</text>
+  <rect x="24" y="74" width="180" height="24" rx="5" class="box"/><text x="36" y="90" class="t">01. Data Collection</text>
+  <rect x="24" y="104" width="180" height="24" rx="5" class="box"/><text x="36" y="120" class="t">02. PM Meetings</text>
+  <rect x="24" y="134" width="180" height="24" rx="5" class="box"/><text x="36" y="150" class="t">03. SteerCo Meetings</text>
+  <rect x="24" y="164" width="180" height="24" rx="5" class="box"/><text x="36" y="180" class="t">04. Deliverables</text>
+  <text x="24" y="206" class="ts">existing, untouched</text>
+
+  <rect x="24" y="228" width="180" height="112" rx="6" fill="#FFF" stroke="#EF9D17" stroke-width="1.4"/>
+  <text x="36" y="248" class="tb">06. Mockup</text>
+  <rect x="36" y="258" width="156" height="22" rx="5" class="box"/><text x="46" y="273" class="t">Released, the master</text>
+  <rect x="36" y="286" width="156" height="22" rx="5" class="boxsoft"/><text x="46" y="301" class="t">Working</text>
+  <text x="36" y="326" class="ts">one file, one editor</text>
+
+  <rect x="224" y="44" width="262" height="404" rx="6" fill="#FFF" stroke="#385D7F" stroke-width="1.4"/>
+  <text x="238" y="64" class="tb">05. Specs</text>
+  <rect x="238" y="74" width="234" height="22" rx="5" class="boxsoft"/><text x="248" y="89" class="t">00. Ways of Working</text>
+  <rect x="238" y="102" width="234" height="22" rx="5" class="boxsoft"/><text x="248" y="117" class="t">00. PRD</text>
+
+  <rect x="238" y="132" width="234" height="86" rx="5" class="box"/>
+  <text x="248" y="150" class="tb">CT1. End to End Visibility</text>
+  <rect x="250" y="158" width="210" height="20" rx="4" class="boxsoft"/><text x="258" y="172" class="ts">1.1 Live status</text>
+  <rect x="250" y="182" width="210" height="20" rx="4" class="boxsoft"/><text x="258" y="196" class="ts">1.2 Operational performance dashboard</text>
+
+  <rect x="238" y="226" width="234" height="86" rx="5" class="box"/>
+  <text x="248" y="244" class="tb">CT2. Exception Handling</text>
+  <rect x="250" y="252" width="210" height="20" rx="4" class="boxsoft"/><text x="258" y="266" class="ts">2.1 User-based exception list</text>
+  <rect x="250" y="276" width="210" height="20" rx="4" class="boxsoft"/><text x="258" y="290" class="ts">2.2 Recommendation and resolution engine</text>
+
+  <rect x="238" y="320" width="234" height="86" rx="5" class="box"/>
+  <text x="248" y="338" class="tb">CT3. Continuous Improvement</text>
+  <rect x="250" y="346" width="210" height="20" rx="4" class="boxsoft"/><text x="258" y="360" class="ts">3.1 Reports and advanced analytics</text>
+  <rect x="250" y="370" width="210" height="20" rx="4" class="boxsoft"/><text x="258" y="384" class="ts">3.2 Recommended initiatives and actions</text>
+
+  <rect x="238" y="414" width="234" height="22" rx="5" class="boxsoft"/><text x="248" y="429" class="t">CT4, CT5, CT6 and 90. Index</text>
+
+  <rect x="506" y="44" width="290" height="150" rx="6" class="box"/>
+  <text x="520" y="64" class="tb">Inside a sub-module folder</text>
+  <rect x="520" y="74" width="262" height="22" rx="5" class="boxsoft"/><text x="530" y="89" class="t">Working</text>
+  <text x="538" y="108" class="ts">spec .md, registers .xlsx, pod .html</text>
+  <rect x="520" y="116" width="262" height="22" rx="5" class="box"/><text x="530" y="131" class="t">Released</text>
+  <text x="538" y="150" class="ts">approved copies only, read only</text>
+  <text x="520" y="176" class="ts">plus a screen inventory .md</text>
+
+  <rect x="506" y="212" width="290" height="112" rx="6" class="box"/>
+  <text x="520" y="232" class="tb">Who owns what</text>
+  <text x="520" y="252" class="ts">CT1 to CT3, and their sub-modules: the pods</text>
+  <text x="520" y="270" class="ts">CT4 AI Integration, CT5 Data Pipeline: Thibaud</text>
+  <text x="520" y="288" class="ts">CT6 Guarded Execution: Release 2, shell only</text>
+  <text x="520" y="306" class="ts">PRD, index, master mockup: Pierre</text>
+
+  <path d="M486 250 L504 250" class="arrow" marker-end="url(#m1)"/>
+  <text x="506" y="352" class="ts">Minutes and workshop notes stay in Google Docs, outside these folders.</text>
+</svg>
+</div>
+
+<div class="card">
+<h2>2. How a sub-module change reaches the master mockup</h2>
+<p class="csub">Four steps, three of them Pierre's. The pod builds inside the real shell, never on a blank file.</p>
+<svg viewBox="0 0 900 330" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="m2" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 z" fill="#24333F"/>
+    </marker>
+    <marker id="m3" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 z" fill="#8A97A0"/>
+    </marker>
+  </defs>
+
+  <!-- 1 -->
+  <rect x="14" y="40" width="196" height="126" rx="8" class="box" stroke="#EF9D17" stroke-width="1.6"/>
+  <rect x="30" y="54" width="52" height="17" rx="8.5" fill="#EDF3F8"/>
+  <text x="41" y="66" class="pil" fill="#385D7F">PIERRE</text>
+  <text x="30" y="92" class="tb">1. Master mockup</text>
+  <text x="30" y="108" class="tb">release</text>
+  <text x="30" y="128" class="t">improving the mockup,</text>
+  <text x="30" y="144" class="t">shared parts and</text>
+  <text x="30" y="160" class="t">sub-module work alike</text>
+
+  <path d="M212 103 L252 103" class="arrow" marker-end="url(#m2)"/>
+  <text x="216" y="94" class="tl">COPY</text>
+
+  <!-- 2 -->
+  <rect x="254" y="40" width="196" height="126" rx="8" class="box"/>
+  <rect x="270" y="54" width="40" height="17" rx="8.5" fill="#FDF1DC"/>
+  <text x="279" y="66" class="pil" fill="#8A5A08">POD</text>
+  <text x="270" y="92" class="tb">2. Sub-module build</text>
+  <text x="270" y="112" class="t">a new version of its own</text>
+  <text x="270" y="128" class="t">sub-module, inside the</text>
+  <text x="270" y="144" class="t">real shell</text>
+  <text x="270" y="160" class="ts">CT2.1_exception_list_from_v0.16_2026-09-03</text>
+
+  <path d="M452 103 L492 103" class="arrow" marker-end="url(#m2)"/>
+  <text x="456" y="94" class="tl">SHOW</text>
+
+  <!-- 3 -->
+  <rect x="494" y="40" width="176" height="126" rx="8" class="box"/>
+  <rect x="510" y="54" width="52" height="17" rx="8.5" fill="#EDF3F8"/>
+  <text x="521" y="66" class="pil" fill="#385D7F">PIERRE</text>
+  <text x="510" y="92" class="tb">3. Sub-module</text>
+  <text x="510" y="108" class="tb">review</text>
+  <text x="510" y="128" class="t">approves, or asks</text>
+  <text x="510" y="144" class="t">for another pass</text>
+
+  <path d="M672 103 L712 103" class="arrow" marker-end="url(#m2)"/>
+  <text x="674" y="94" class="tl">HAND OVER</text>
+
+  <!-- 4 -->
+  <rect x="714" y="40" width="172" height="126" rx="8" class="box" stroke="#385D7F" stroke-width="1.6"/>
+  <rect x="730" y="54" width="52" height="17" rx="8.5" fill="#EDF3F8"/>
+  <text x="741" y="66" class="pil" fill="#385D7F">PIERRE</text>
+  <text x="730" y="92" class="tb">4. Sub-module</text>
+  <text x="730" y="108" class="tb">integration</text>
+  <text x="730" y="128" class="t">the approved change is</text>
+  <text x="730" y="144" class="t">ported into the master,</text>
+  <text x="730" y="160" class="t">never merged file to file</text>
+
+  <path d="M800 178 L800 214 L112 214 L112 170" class="arrowback" marker-end="url(#m2)"/>
+  <text x="330" y="206" class="ts">a new master is released, one line is added to the changelog</text>
+
+  <path d="M112 228 L112 258 L352 258 L352 172" class="arrowdash" marker-end="url(#m3)"/>
+  <text x="140" y="276" class="ts">the pod refreshes its copy before starting the next change</text>
+
+  <text x="14" y="312" class="ts">A pod never changes the shared parts, design tokens, data layer, milestone chain or vocabulary, without asking first.</text>
+</svg>
+</div>
+
+<div class="card">
+<h2>3. From working to released</h2>
+<p class="csub">The same ritual for a specification, a register or a screen inventory.</p>
+<svg viewBox="0 0 900 210" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="m4" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 z" fill="#24333F"/>
+    </marker>
+  </defs>
+
+  <rect x="14" y="34" width="192" height="84" rx="8" class="boxsoft"/>
+  <rect x="30" y="48" width="40" height="17" rx="8.5" fill="#FDF1DC"/>
+  <text x="39" y="60" class="pil" fill="#8A5A08">POD</text>
+  <text x="30" y="86" class="tb">Working</text>
+  <text x="30" y="104" class="t">edits freely, no ceremony</text>
+
+  <path d="M208 76 L248 76" class="arrow" marker-end="url(#m4)"/>
+
+  <rect x="250" y="34" width="200" height="84" rx="8" class="box"/>
+  <rect x="266" y="48" width="40" height="17" rx="8.5" fill="#FDF1DC"/>
+  <text x="275" y="60" class="pil" fill="#8A5A08">POD</text>
+  <text x="266" y="86" class="tb">Ready for approval</text>
+  <text x="266" y="104" class="t">version named, the revert point</text>
+
+  <path d="M452 76 L492 76" class="arrow" marker-end="url(#m4)"/>
+
+  <rect x="494" y="34" width="188" height="84" rx="8" class="box" stroke="#2F7A4F" stroke-width="1.6"/>
+  <rect x="510" y="48" width="52" height="17" rx="8.5" fill="#EDF3F8"/>
+  <text x="521" y="60" class="pil" fill="#385D7F">PIERRE</text>
+  <text x="510" y="86" class="tb">Released</text>
+  <text x="510" y="104" class="t">v1.2_2026-09-11, read only</text>
+
+  <path d="M684 76 L724 76" class="arrow" marker-end="url(#m4)"/>
+
+  <rect x="726" y="34" width="160" height="84" rx="8" class="boxsoft"/>
+  <text x="742" y="60" class="tb">Shared</text>
+  <text x="742" y="80" class="t">devs, Thibaud,</text>
+  <text x="742" y="98" class="t">client as PDF</text>
+
+  <path d="M350 130 L350 162 L110 162 L110 122" class="arrowback" marker-end="url(#m4)"/>
+  <text x="136" y="156" class="ts">not approved: revert to the named version, nothing is lost</text>
+
+  <text x="14" y="196" class="ts">The index is updated on every release. If the index and a file disagree, the index is wrong and gets fixed the same day.</text>
+</svg>
+</div>
+
+</body>
+</html>

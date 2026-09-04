@@ -2,8 +2,5 @@
 :: Wait for system to fully load
 timeout /t 10 /nobreak
 
-:: Start Mutagen daemon
+:: Start Mutagen daemon (VSCode SSH <-> Local Desktop sync)
 mutagen daemon start
-
-:: Start rclone mount in background
-start "" /B rclone mount "gdrive:YCH-TCT" "D:\Đi Làm\CEL\Project\YCH - TCT\YCH-TCT-ggdrive" --vfs-cache-mode full
